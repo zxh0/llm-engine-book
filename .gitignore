@@ -1,0 +1,12 @@
+.DS_Store
+.venv/
+
+# VitePress 站点：以下都是从 chapters/、images/、aigc/ 和 tools/ 生成的产物
+node_modules/
+docs/chapters/
+docs/public/
+docs/.vitepress/sidebar.json
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+
+__pycache__/

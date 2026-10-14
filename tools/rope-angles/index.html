@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RoPE旋转角度</title>
+<style>
+:root{
+  --bg:#f7f7f8; --panel:#ffffff; --border:#e3e5e8; --text:#16181d; --muted:#6b7280;
+  --accent:#2563eb; --accent-soft:#eff4ff; --code:#f2f3f5; --hi:#111827;
+  --q:#dc2626; --k:#16a34a; --arc:#d97706;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#15171c; --panel:#1c1f26; --border:#2d3139; --text:#e6e8ec; --muted:#9aa1ad;
+    --accent:#6ea8fe; --accent-soft:#1e2637; --code:#22262e; --hi:#ffffff;
+    --q:#f87171; --k:#4ade80; --arc:#fbbf24;
+  }
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+}
+.wrap{max-width:1180px; margin:0 auto; padding:24px 16px 64px}
+h1{font-size:22px; margin:0 0 4px}
+h2{font-size:16px; margin:0 0 4px}
+.sub{color:var(--muted); margin:0 0 20px}
+.card{background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:16px; margin-bottom:16px}
+.card > .desc{color:var(--muted); font-size:13px; margin:0 0 12px}
+.row{display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end}
+label.f{display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted)}
+input[type=number],select{
+  background:var(--panel); color:var(--text); border:1px solid var(--border);
+  border-radius:7px; padding:7px 9px; font:13px/1.4 inherit; width:110px;
+}
+select{width:auto}
+input[type=number]:focus,select:focus{outline:2px solid var(--accent-soft); border-color:var(--accent)}
+button.mini{
+  background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:6px;
+  padding:6px 10px; font:12px/1.4 inherit; cursor:pointer;
+}
+button.mini:hover{border-color:var(--accent); color:var(--accent)}
+button.mini.on{background:var(--accent-soft); color:var(--accent); border-color:var(--accent)}
+.presets{display:flex; gap:6px; flex-wrap:wrap; align-items:center; font-size:12px; color:var(--muted)}
+.formula{
+  margin-top:10px; padding:10px 12px; background:var(--bg); border:1px solid var(--border); border-radius:8px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:13px; overflow-x:auto; white-space:nowrap;
+}
+.tabs{display:flex; gap:4px; flex-wrap:wrap; margin-bottom:12px}
+.plot{display:flex; gap:12px; align-items:stretch}
+.chart{position:relative; flex:1; min-width:0}
+.chart canvas{position:absolute; left:0; top:0; width:100%; height:100%}
+#overlay{cursor:crosshair; touch-action:none}
+.cbar{display:flex; gap:6px; flex:none; padding:10px 0 36px}
+.cbar .grad{width:14px; border-radius:3px; border:1px solid var(--border)}
+.cbar .ticks{display:flex; flex-direction:column; justify-content:space-between; font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums}
+.tip{
+  position:absolute; pointer-events:none; z-index:2; display:none;
+  background:var(--panel); border:1px solid var(--border); border-radius:8px;
+  padding:6px 10px; font-size:12px; white-space:nowrap; box-shadow:0 4px 14px rgba(0,0,0,.12);
+  font-variant-numeric:tabular-nums;
+}
+.detail{display:flex; gap:14px; margin-top:12px; align-items:flex-start; flex-wrap:wrap}
+.detail .info{flex:1; min-width:260px}
+.dial{flex:none; width:200px; height:200px; background:var(--bg); border:1px solid var(--border); border-radius:8px}
+.info{display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px}
+.stat{background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:8px 12px}
+.stat .k{font-size:12px; color:var(--muted)}
+.stat .v{font-size:16px; font-weight:600; font-variant-numeric:tabular-nums; word-break:break-all}
+.stat .v small{font-size:12px; font-weight:400; color:var(--muted)}
+.stat.warn .v{color:#b45309}
+@media (prefers-color-scheme: dark){ .stat.warn .v{color:#fbbf24} }
+.hint{font-size:12px; color:var(--muted); margin-top:10px}
+.sliders{display:grid; grid-template-columns:auto 1fr auto; gap:6px 10px; align-items:center; font-size:13px}
+.sliders input[type=range]{width:100%}
+.sliders input[type=number]{width:84px; padding:4px 6px}
+.q{color:var(--q); font-weight:600} .k{color:var(--k); font-weight:600}
+.big{font-size:20px !important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>RoPE旋转角度</h1>
+  <p class="sub">RoPE把每个头的向量两两分成一组，看成一个个平面，按位置把每个平面转一个角度。上面看每个位置、每个平面各转了多少；下面看为什么旋转之后的点积只和相对位置有关。默认是SmolLM2的参数。</p>
+
+  <div class="card">
+    <div class="row">
+      <label class="f">每个头的维度 d<input type="number" id="d" min="2" max="512" step="2" value="64"></label>
+      <label class="f">位置数 T<input type="number" id="n" min="1" max="8192" step="1" value="100"></label>
+      <label class="f">底数 base<input type="number" id="base" min="2" step="10000" value="100000"></label>
+      <label class="f">配对方式<select id="pair">
+        <option value="half">half-split（SmolLM2）</option>
+        <option value="inter">相邻配对（RoFormer论文）</option>
+      </select></label>
+      <div class="presets">预设：
+        <button class="mini" data-p="64,100,100000,half">SmolLM2</button>
+        <button class="mini" data-p="64,100,10000,inter">RoFormer论文</button>
+        <button class="mini" data-p="64,8192,100000,half">SmolLM2全上下文 T=8192</button>
+        <button class="mini" data-p="8,4,10000,inter">正文小例子 d=8, T=4</button>
+      </div>
+    </div>
+    <div class="formula">θ<sub>i</sub> = base<sup>−2(i−1)/d</sup>，i = 1 … d/2 &nbsp;&nbsp; 第 m 个位置的第 i 个平面转 m·θ<sub>i</sub> 弧度</div>
+  </div>
+
+  <div class="card">
+    <h2>每个平面转了多少</h2>
+    <p class="desc">行是位置 m，列是平面 i。颜色是转角对一圈取余：色环转一圈，向量也正好转一圈。鼠标放到任意一格上，看它转了多少。</p>
+    <div class="tabs">
+      <button class="mini on" data-view="angle">转角（按平面）</button>
+      <button class="mini" data-view="cos">cos表（按维度）</button>
+      <button class="mini" data-view="sin">sin表（按维度）</button>
+    </div>
+    <div class="plot">
+      <div class="chart" id="chart">
+        <canvas id="heat"></canvas>
+        <canvas id="overlay"></canvas>
+        <div class="tip" id="tip"></div>
+      </div>
+      <div class="cbar">
+        <div class="grad" id="grad"></div>
+        <div class="ticks" id="cticks"></div>
+      </div>
+    </div>
+    <div class="detail">
+      <div class="info">
+        <div class="stat"><div class="k">位置 m</div><div class="v" id="vM">–</div></div>
+        <div class="stat"><div class="k">平面 i</div><div class="v" id="vI">–</div></div>
+        <div class="stat"><div class="k">这个平面用哪两维</div><div class="v" id="vDims">–</div></div>
+        <div class="stat"><div class="k">θ<sub>i</sub>（每个位置转多少）</div><div class="v" id="vTheta">–</div></div>
+        <div class="stat"><div class="k">转角 m·θ<sub>i</sub></div><div class="v" id="vAng">–</div></div>
+        <div class="stat"><div class="k">已经转了几圈</div><div class="v" id="vTurns">–</div></div>
+        <div class="stat"><div class="k">cos(m·θ<sub>i</sub>)，sin(m·θ<sub>i</sub>)</div><div class="v" id="vCS">–</div></div>
+        <div class="stat" id="sWave"><div class="k">转一圈要几个位置</div><div class="v" id="vWave">–</div></div>
+      </div>
+      <canvas class="dial" id="dial1"></canvas>
+    </div>
+    <div class="formula" id="calc">把鼠标放到图上</div>
+    <p class="hint">平面 i 从1开始编号，和RoFormer论文一致；代码里是从0开始的，所以第 i 个平面在代码里是第 i−1 个。“这个平面用哪两维”按代码的写法从0数：half-split把第 j 维和第 j+d/2 维配成一对，相邻配对把第 2j 维和第 2j+1 维配成一对。右边的表盘画的是这个平面里的一个向量，虚线是转之前，实线是转之后。</p>
+  </div>
+
+  <div class="card">
+    <h2>为什么只和相对位置有关</h2>
+    <p class="desc">取一个 <span class="q">q</span> 向量和一个 <span class="k">k</span> 向量（随便定的一组数），<span class="q">q</span> 放在第 m 个位置，<span class="k">k</span> 放在第 n 个位置，各自按位置旋转，再算点积。拖动“整体平移”，m 和 n 一起往后挪：两根向量一起转，夹角不变，点积也不变。只改 n，点积才会变。</p>
+    <div class="detail">
+      <div class="info" style="display:block">
+        <div class="sliders">
+          <span>平面 i</span><input type="range" id="rI" min="1" max="32" value="1"><input type="number" id="nI" min="1" max="32" value="1">
+          <span><span class="q">q</span> 的位置 m</span><input type="range" id="rM" min="0" max="255" value="2"><input type="number" id="nM" min="0" max="255" value="2">
+          <span><span class="k">k</span> 的位置 n</span><input type="range" id="rN" min="0" max="255" value="5"><input type="number" id="nN" min="0" max="255" value="5">
+          <span>整体平移 s</span><input type="range" id="rS" min="0" max="8000" value="0"><input type="number" id="nS" min="0" max="8000" value="0">
+        </div>
+        <div class="info" style="margin-top:12px">
+          <div class="stat"><div class="k">实际位置</div><div class="v" id="wPos">–</div></div>
+          <div class="stat"><div class="k">相对距离 n−m</div><div class="v" id="wRel">–</div></div>
+          <div class="stat"><div class="k">这个平面里的夹角变化 (n−m)·θ<sub>i</sub></div><div class="v" id="wArc">–</div></div>
+          <div class="stat"><div class="k">这个平面的点积</div><div class="v big" id="wDot1">–</div></div>
+          <div class="stat"><div class="k">整个头（d维）的点积</div><div class="v big" id="wDotAll">–</div></div>
+          <div class="stat"><div class="k">不旋转时整个头的点积</div><div class="v" id="wDot0">–</div></div>
+        </div>
+      </div>
+      <canvas class="dial" id="dial2"></canvas>
+    </div>
+    <div class="formula" id="calc2"></div>
+    <p class="hint">“整个头的点积”是 d/2 个平面各自的点积加起来，每个平面转速不同，但都只看 n−m。把 s 拖到几千，点积最多在小数点后很多位变一点点，那是浮点舍入，不是RoPE本身的误差。</p>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const TAU = 2 * Math.PI;
+const CTX_LEN = 8192;                 // SmolLM2的max_position_embeddings
+const M = {left: 52, right: 8, top: 10, bottom: 36};
+
+// matplotlib 的 coolwarm，均匀取了17个点
+const COOLWARM = [[59,76,192],[78,104,216],[98,130,234],[119,154,247],[141,176,254],[163,194,254],
+  [185,208,249],[204,217,237],[221,220,220],[236,211,197],[245,196,172],[247,176,147],[244,152,122],
+  [235,125,98],[221,95,75],[202,59,55],[180,4,38]];
+function coolwarm(v){
+  const t = Math.min(1, Math.max(0, (v + 1) / 2)) * (COOLWARM.length - 1);
+  const k = Math.min(COOLWARM.length - 2, Math.floor(t)), f = t - k, a = COOLWARM[k], b = COOLWARM[k + 1];
+  return [0, 1, 2].map(c => Math.round(a[c] + (b[c] - a[c]) * f));
+}
+// 色环：角度对一圈取余，映射到色相
+function hue(a){
+  const h = ((a % TAU) + TAU) % TAU / TAU * 6, s = .72, l = .56;
+  const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs(h % 2 - 1)), m = l - c / 2;
+  const [r, g, b] = h < 1 ? [c, x, 0] : h < 2 ? [x, c, 0] : h < 3 ? [0, c, x] : h < 4 ? [0, x, c] : h < 5 ? [x, 0, c] : [c, 0, x];
+  return [r, g, b].map(u => Math.round((u + m) * 255));
+}
+
+let D = 64, N = 100, BASE = 100000, PAIR = "half", VIEW = "angle", hover = null, geo = null;
+const P = () => D / 2;
+const theta = i => Math.pow(BASE, -2 * (i - 1) / D);           // i 从1开始
+// 第 j 维（从0数）属于哪个平面（从1数）
+const planeOf = j => PAIR === "half" ? (j % P()) + 1 : (j >> 1) + 1;
+// 第 i 个平面（从1数）用哪两维（从0数）
+const dimsOf = i => PAIR === "half" ? [i - 1, i - 1 + P()] : [2 * (i - 1), 2 * (i - 1) + 1];
+const cols = () => VIEW === "angle" ? P() : D;
+
+function cellValue(m, c){
+  if (VIEW === "angle") return m * theta(c + 1);
+  const a = m * theta(planeOf(c));
+  return VIEW === "cos" ? Math.cos(a) : Math.sin(a);
+}
+function cellColor(m, c){ return VIEW === "angle" ? hue(cellValue(m, c)) : coolwarm(cellValue(m, c)); }
+
+// ---------- 参数 ----------
+function readParams(){
+  const q = new URLSearchParams(location.search);
+  for (const k of ["d", "n", "base", "pair"]) if (q.has(k)) $(k).value = q.get(k);
+}
+function sync(){
+  let d = parseInt($("d").value, 10), n = parseInt($("n").value, 10), b = parseFloat($("base").value);
+  if (!(d >= 2)) d = 2; if (d % 2) d += 1; d = Math.min(d, 512);
+  if (!(n >= 1)) n = 1; n = Math.min(n, CTX_LEN);
+  if (!(b > 1)) b = 100000;
+  D = d; N = n; BASE = b; PAIR = $("pair").value;
+  $("d").value = D; $("n").value = N;
+  document.querySelectorAll("[data-p]").forEach(el =>
+    el.classList.toggle("on", el.dataset.p === `${D},${N},${BASE},${PAIR}`));
+  try { history.replaceState(null, "", `?d=${D}&n=${N}&base=${BASE}&pair=${PAIR}`); } catch (e) {}
+  makeVectors();
+  for (const id of ["rI", "nI"]){ $(id).max = P(); if (+$(id).value > P()) $(id).value = P(); }
+  draw();
+  relative();
+}
+
+// ---------- 热力图 ----------
+function ticks(n, max){
+  const raw = n / max, p = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = Math.max(1, [1, 2, 5, 10].map(m => m * p).find(s => s >= raw));
+  const out = []; for (let v = 0; v < n; v += step) out.push(v);
+  return out;
+}
+function size(){
+  const box = $("chart"), w = box.clientWidth;
+  const h = Math.max(260, Math.min(520, Math.round(w * 0.55)));
+  box.style.height = h + "px";
+  const dpr = window.devicePixelRatio || 1;
+  for (const c of [$("heat"), $("overlay")]){ c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); }
+  return {w, h, dpr};
+}
+function legend(){
+  if (VIEW === "angle"){
+    const stops = []; for (let k = 0; k <= 24; k++) stops.push(`rgb(${hue(k / 24 * TAU)}) ${k / 24 * 100}%`);
+    $("grad").style.background = `linear-gradient(to top,${stops.join(",")})`;
+    $("cticks").innerHTML = "<span>2π</span><span>3π/2</span><span>π</span><span>π/2</span><span>0</span>";
+  } else {
+    $("grad").style.background = "linear-gradient(to top," +
+      COOLWARM.map((c, k) => `rgb(${c}) ${k / (COOLWARM.length - 1) * 100}%`).join(",") + ")";
+    $("cticks").innerHTML = "<span>1.00</span><span>0.50</span><span>0.00</span><span>−0.50</span><span>−1.00</span>";
+  }
+}
+function draw(){
+  legend();
+  const {w, h, dpr} = size(), C = cols();
+  const pw = w - M.left - M.right, ph = h - M.top - M.bottom;
+  geo = {x: M.left, y: M.top, w: pw, h: ph, dpr};
+
+  const off = document.createElement("canvas"); off.width = C; off.height = N;
+  const octx = off.getContext("2d"), img = octx.createImageData(C, N);
+  for (let m = 0; m < N; m++) for (let c = 0; c < C; c++){
+    const [r, g, b] = cellColor(m, c), o = (m * C + c) * 4;
+    img.data[o] = r; img.data[o + 1] = g; img.data[o + 2] = b; img.data[o + 3] = 255;
+  }
+  octx.putImageData(img, 0, 0);
+
+  const ctx = $("heat").getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(off, geo.x, geo.y, pw, ph);
+
+  const css = getComputedStyle(document.body);
+  const muted = css.getPropertyValue("--muted").trim(), text = css.getPropertyValue("--text").trim();
+  ctx.strokeStyle = muted; ctx.fillStyle = muted; ctx.lineWidth = 1;
+  ctx.font = "11px -apple-system,BlinkMacSystemFont,sans-serif";
+  ctx.strokeRect(geo.x - .5, geo.y - .5, pw + 1, ph + 1);
+
+  // 横轴：平面从1数，维度从0数
+  ctx.textAlign = "center"; ctx.textBaseline = "top";
+  const xt = VIEW === "angle"
+    ? [1, ...ticks(C + 1, Math.max(2, Math.floor(pw / 60))).filter(v => v > 1)].map(v => [v - 1, v])
+    : ticks(C, Math.max(2, Math.floor(pw / 60))).map(v => [v, v]);
+  for (const [c, label] of xt){
+    const x = geo.x + (c + .5) * pw / C;
+    ctx.beginPath(); ctx.moveTo(x, geo.y + ph); ctx.lineTo(x, geo.y + ph + 4); ctx.stroke();
+    ctx.fillText(label, x, geo.y + ph + 6);
+  }
+  ctx.textAlign = "right"; ctx.textBaseline = "middle";
+  for (const m of ticks(N, Math.max(2, Math.floor(ph / 40)))){
+    const y = geo.y + (m + .5) * ph / N;
+    ctx.beginPath(); ctx.moveTo(geo.x - 4, y); ctx.lineTo(geo.x, y); ctx.stroke();
+    ctx.fillText(m, geo.x - 7, y);
+  }
+  ctx.fillStyle = text; ctx.font = "12px -apple-system,BlinkMacSystemFont,sans-serif";
+  ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+  ctx.fillText(VIEW === "angle" ? "Plane i" : "Dimension", geo.x + pw / 2, h - 2);
+  ctx.save(); ctx.translate(12, geo.y + ph / 2); ctx.rotate(-Math.PI / 2);
+  ctx.textBaseline = "middle"; ctx.fillText("Position m", 0, 0); ctx.restore();
+  drawOverlay();
+}
+function drawOverlay(){
+  const cv = $("overlay"), ctx = cv.getContext("2d");
+  ctx.setTransform(geo.dpr, 0, 0, geo.dpr, 0, 0);
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  if (!hover) return;
+  const C = cols(), cw = geo.w / C, ch = geo.h / N;
+  ctx.strokeStyle = getComputedStyle(document.body).getPropertyValue("--hi").trim();
+  if (VIEW !== "angle"){                          // 同一个平面的另一维，虚线框出来
+    const [a, b] = dimsOf(planeOf(hover.c)), other = a === hover.c ? b : a;
+    ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+    ctx.strokeRect(geo.x + other * cw, geo.y, Math.max(cw, 1), geo.h);
+    ctx.setLineDash([]);
+  }
+  ctx.lineWidth = 1;
+  ctx.strokeRect(geo.x + hover.c * cw, geo.y, Math.max(cw, 1), geo.h);
+  ctx.lineWidth = 2;
+  ctx.strokeRect(geo.x + hover.c * cw - 1, geo.y + hover.m * ch - 1, Math.max(cw, 1) + 2, Math.max(ch, 1) + 2);
+}
+
+// ---------- 数字格式 ----------
+const neg = x => (x < 0 ? "−" : "");
+const fmt = (x, k = 4) => neg(x) + Math.abs(x).toFixed(k);
+function num(x){                                  // 大数加千分位，很小的数用科学计数法
+  const a = Math.abs(x);
+  if (a !== 0 && a < 1e-3) return neg(x) + a.toExponential(3).replace(/e([+-])(\d+)/, (_, s, e) => `×10<sup>${s === "-" ? "−" : ""}${e}</sup>`);
+  return neg(x) + a.toLocaleString("en-US", {maximumFractionDigits: a < 10 ? 4 : a < 1000 ? 2 : 0});
+}
+const deg = a => num(a * 180 / Math.PI) + "°";
+
+// ---------- 表盘 ----------
+function dial(canvas, vecs, arc){
+  const dpr = window.devicePixelRatio || 1, s = canvas.clientWidth;
+  canvas.width = canvas.height = Math.round(s * dpr);
+  const ctx = canvas.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const css = getComputedStyle(document.body), color = v => css.getPropertyValue(v).trim();
+  const cx = s / 2, cy = s / 2, R = s / 2 - 18;
+  ctx.clearRect(0, 0, s, s);
+  ctx.strokeStyle = color("--border"); ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx - R - 6, cy); ctx.lineTo(cx + R + 6, cy); ctx.moveTo(cx, cy - R - 6); ctx.lineTo(cx, cy + R + 6); ctx.stroke();
+  const scale = R / Math.max(...vecs.map(v => Math.hypot(...v.xy)));
+  const at = (xy, r = 1) => [cx + xy[0] * scale * r, cy - xy[1] * scale * r];  // 数学坐标，y朝上
+  if (arc){                                       // 从 arc.from 逆时针扫 arc.angle 弧度
+    const r = R * .32, a0 = Math.atan2(arc.from[1], arc.from[0]), sweep = arc.angle;
+    ctx.strokeStyle = color("--arc"); ctx.lineWidth = 2;
+    ctx.beginPath();
+    if (Math.abs(sweep) >= TAU) ctx.arc(cx, cy, r, 0, TAU);
+    else ctx.arc(cx, cy, r, -a0, -(a0 + sweep), sweep > 0);
+    ctx.stroke();
+  }
+  for (const v of vecs){
+    const [x, y] = at(v.xy), c = color(v.color);
+    ctx.strokeStyle = c; ctx.fillStyle = c; ctx.lineWidth = v.dashed ? 1.5 : 2.5;
+    ctx.setLineDash(v.dashed ? [4, 4] : []); ctx.globalAlpha = v.dashed ? .55 : 1;
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(x, y); ctx.stroke();
+    ctx.setLineDash([]);
+    const ang = Math.atan2(cy - y, x - cx), hl = 9;     // 箭头
+    ctx.beginPath(); ctx.moveTo(x, y);
+    ctx.lineTo(x - hl * Math.cos(ang - .4), y + hl * Math.sin(ang - .4));
+    ctx.lineTo(x - hl * Math.cos(ang + .4), y + hl * Math.sin(ang + .4));
+    ctx.closePath(); ctx.fill();
+    if (v.label){
+      ctx.font = "600 12px -apple-system,BlinkMacSystemFont,sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      const [lx, ly] = at(v.xy, 1.13); ctx.fillText(v.label, lx, ly);
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+const rot = (xy, a) => [xy[0] * Math.cos(a) - xy[1] * Math.sin(a), xy[0] * Math.sin(a) + xy[1] * Math.cos(a)];
+
+// ---------- 悬停 ----------
+function show(e){
+  const r = $("overlay").getBoundingClientRect(), C = cols();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  const c = Math.floor((mx - geo.x) / geo.w * C), m = Math.floor((my - geo.y) / geo.h * N);
+  if (c < 0 || c >= C || m < 0 || m >= N){ hide(); return; }
+  if (!hover || hover.c !== c || hover.m !== m){ hover = {c, m}; drawOverlay(); }
+
+  const i = VIEW === "angle" ? c + 1 : planeOf(c), th = theta(i), a = m * th;
+  const [d1, d2] = dimsOf(i), wave = TAU / th, turns = a / TAU;
+  $("vM").textContent = m;
+  $("vI").innerHTML = `${i} <small>代码里是第${i - 1}个</small>`;
+  $("vDims").textContent = `第${d1}维和第${d2}维`;
+  $("vTheta").innerHTML = num(th) + " <small>弧度</small>";
+  $("vAng").innerHTML = `${num(a)} <small>弧度 = ${deg(a)}</small>`;
+  $("vTurns").textContent = num(turns) + " 圈";
+  $("vCS").textContent = `${fmt(Math.cos(a))}，${fmt(Math.sin(a))}`;
+  const short = wave > CTX_LEN;
+  $("sWave").classList.toggle("warn", short);
+  $("vWave").innerHTML = num(wave) + (short ? " <small>比8192长，整个上下文里转不满一圈</small>" : "");
+
+  let calc = `θ<sub>${i}</sub> = ${BASE}<sup>−2×${i - 1}/${D}</sup> = ${num(th)}，` +
+    `m·θ<sub>${i}</sub> = ${m} × ${num(th)} = ${num(a)} 弧度`;
+  if (VIEW !== "angle"){
+    const fn = VIEW, v = fn === "cos" ? Math.cos(a) : Math.sin(a);
+    calc = `${fn}表[${m}, ${c}] = ${fn}(m·θ<sub>${i}</sub>) = ${fn}(${num(a)}) = <b>${fmt(v, 6)}</b>　（${calc}）`;
+  }
+  $("calc").innerHTML = calc;
+  const base = [0.95, 0.31];                      // 表盘上的示例向量，转之前大约18°
+  dial($("dial1"), [{xy: base, color: "--q", dashed: true}, {xy: rot(base, a), color: "--q", label: "q′"}], {from: base, angle: a % TAU});
+
+  const tip = $("tip");
+  tip.innerHTML = VIEW === "angle"
+    ? `m=${m}　i=${i}　转 <b>${num(a)}</b> 弧度（${num(turns)} 圈）`
+    : `m=${m}　第${c}维（平面${i}）　${VIEW} = <b>${fmt(VIEW === "cos" ? Math.cos(a) : Math.sin(a), 3)}</b>`;
+  tip.style.display = "block";
+  const tw = tip.offsetWidth, tht = tip.offsetHeight;
+  tip.style.left = Math.max(2, Math.min(mx + 14, r.width - tw - 2)) + "px";
+  tip.style.top = (my + 14 + tht > r.height ? my - tht - 10 : my + 14) + "px";
+}
+function hide(){ hover = null; $("tip").style.display = "none"; if (geo) drawOverlay(); }
+
+// ---------- 相对位置 ----------
+let Q = [], K = [];
+function makeVectors(){                           // 固定种子的伪随机数，每次打开都一样
+  let s = 20211;
+  const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647 - .5;
+  Q = Array.from({length: D}, rnd); K = Array.from({length: D}, rnd);
+}
+// 按配对方式，把整个向量的每个平面都转 pos·θ_i
+function rope(x, pos){
+  const y = x.slice();
+  for (let i = 1; i <= P(); i++){
+    const [a, b] = dimsOf(i), ang = pos * theta(i), c = Math.cos(ang), s = Math.sin(ang);
+    y[a] = x[a] * c - x[b] * s; y[b] = x[a] * s + x[b] * c;
+  }
+  return y;
+}
+const dot = (x, y) => x.reduce((acc, v, j) => acc + v * y[j], 0);
+
+function linked(r, n){
+  $(r).addEventListener("input", () => { $(n).value = $(r).value; relative(); });
+  $(n).addEventListener("change", () => {
+    const v = Math.min(+$(r).max, Math.max(+$(r).min, parseInt($(n).value, 10) || 0));
+    $(n).value = $(r).value = v; relative();
+  });
+}
+function relative(){
+  const i = +$("rI").value, m = +$("rM").value, n = +$("rN").value, s = +$("rS").value;
+  const pm = m + s, pn = n + s, th = theta(i), [a, b] = dimsOf(i);
+  const q2 = [Q[a], Q[b]], k2 = [K[a], K[b]];
+  const qr = rot(q2, pm * th), kr = rot(k2, pn * th);
+  const d1 = qr[0] * kr[0] + qr[1] * kr[1];
+  const dAll = dot(rope(Q, pm), rope(K, pn)), d0 = dot(Q, K);
+  const relA = (n - m) * th;
+
+  $("wPos").innerHTML = `<span class="q">q</span> 在 ${pm}，<span class="k">k</span> 在 ${pn}`;
+  $("wRel").textContent = n - m;
+  $("wArc").innerHTML = `${num(relA)} <small>弧度 = ${deg(relA)}</small>`;
+  $("wDot1").textContent = fmt(d1, 6);
+  $("wDotAll").textContent = fmt(dAll, 6);
+  $("wDot0").textContent = fmt(d0, 6);
+  $("calc2").innerHTML =
+    `<span class="q">q</span> 转 ${pm}·θ<sub>${i}</sub> = ${num(pm * th)}，<span class="k">k</span> 转 ${pn}·θ<sub>${i}</sub> = ${num(pn * th)}，` +
+    `两者差 (${pn}−${pm})·θ<sub>${i}</sub> = ${num(relA)} 弧度，和平移 s 无关`;
+  dial($("dial2"), [
+    {xy: q2, color: "--q", dashed: true}, {xy: k2, color: "--k", dashed: true},
+    {xy: qr, color: "--q", label: "q′"}, {xy: kr, color: "--k", label: "k′"},
+  ], {from: qr, angle: Math.atan2(qr[0] * kr[1] - qr[1] * kr[0], qr[0] * kr[0] + qr[1] * kr[1])});
+}
+
+// ---------- 事件 ----------
+$("overlay").addEventListener("pointermove", show);
+$("overlay").addEventListener("pointerdown", show);
+$("overlay").addEventListener("pointerleave", hide);
+for (const id of ["d", "n", "base", "pair"]) $(id).addEventListener("change", sync);
+document.querySelectorAll("[data-p]").forEach(el => el.addEventListener("click", () => {
+  const [d, n, b, p] = el.dataset.p.split(",");
+  $("d").value = d; $("n").value = n; $("base").value = b; $("pair").value = p; sync();
+}));
+document.querySelectorAll("[data-view]").forEach(el => el.addEventListener("click", () => {
+  VIEW = el.dataset.view; hide();
+  document.querySelectorAll("[data-view]").forEach(b => b.classList.toggle("on", b === el));
+  draw();
+}));
+linked("rI", "nI"); linked("rM", "nM"); linked("rN", "nN"); linked("rS", "nS");
+let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { draw(); relative(); }, 100); });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { draw(); relative(); });
+
+readParams();
+sync();
+dial($("dial1"), [{xy: [0.95, 0.31], color: "--q", dashed: true}], null);
+</script>
+</body>
+</html>

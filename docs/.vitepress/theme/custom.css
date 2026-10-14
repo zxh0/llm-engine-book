@@ -1,0 +1,128 @@
+/* 中文正文的阅读体验微调 */
+:root {
+  --vp-layout-max-width: 1520px;
+  --vp-content-max-width: 800px;
+}
+
+.VPDoc .content-container {
+  max-width: var(--vp-content-max-width);
+}
+
+.vp-doc p {
+  line-height: 1.85;
+  text-align: justify;
+}
+
+/* 标题多留些呼吸空间 */
+.vp-doc h1 {
+  margin-bottom: 1.5rem;
+  letter-spacing: 0.02em;
+}
+
+/* 插图：居中、不超出正文宽度 */
+.vp-doc img {
+  display: block;
+  margin: 1.75rem auto;
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+/* 示意图是白底线稿，深色模式下直接铺开会太刺眼，
+   统一放进一张白色卡片里，浅色模式下几乎看不出边界。 */
+.vp-doc img[src*="/images/"] {
+  background: #fff;
+  padding: 12px;
+  border: 1px solid var(--vp-c-divider);
+}
+
+/* 公式：MathJax 输出的 SVG 用 currentColor，深色模式自动跟随正文颜色。
+   块级公式在窄屏上可能超宽，让它自己横向滚动，不要撑破页面。 */
+.vp-doc mjx-container[display='true'] {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.5rem 0;
+}
+
+.vp-doc mjx-container svg {
+  max-width: none;
+}
+
+/* 本书的目录：已发布的章节能点开，还没写完的先灰着列出来 */
+.book-toc {
+  margin: 1.25rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.book-toc li {
+  padding: 0.5rem 0 0.5rem 1rem;
+  border-left: 2px solid var(--vp-c-divider);
+  color: var(--vp-c-text-3);
+}
+
+.book-toc li.published {
+  border-left-color: var(--vp-c-brand-1);
+}
+
+.book-toc a {
+  font-weight: 500;
+}
+
+/* /tools 页的工具卡片 */
+.tool-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.25rem;
+  margin: 1.5rem 0 0;
+}
+
+.tool-card {
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem 1.4rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 12px;
+  background: var(--vp-c-bg-soft);
+  color: inherit;
+  font-weight: inherit;
+  text-decoration: none;
+  transition: border-color 0.25s, box-shadow 0.25s;
+}
+
+.tool-card:hover {
+  border-color: var(--vp-c-brand-1);
+  box-shadow: var(--vp-shadow-2);
+}
+
+.tool-card h3 {
+  margin: 0;
+  border: none;
+  padding: 0;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  color: var(--vp-c-brand-1);
+}
+
+.tool-card p {
+  margin: 0.5rem 0 0;
+  text-align: left;
+}
+
+.tool-card-blurb {
+  font-size: 0.92em;
+  line-height: 1.7;
+}
+
+.tool-card-note {
+  color: var(--vp-c-text-3);
+  font-size: 0.85em;
+}
+
+/* 「打开工具 →」贴在卡片底部，几张卡片高度不一样时也能对齐 */
+.tool-card-open {
+  margin-top: auto;
+  padding-top: 0.75rem;
+  color: var(--vp-c-brand-1);
+  font-size: 0.88em;
+  font-weight: 500;
+}
