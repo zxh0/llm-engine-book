@@ -1,6 +1,6 @@
 ---
 name: check-formulas
-description: This skill should be used when the user asks to "check formulas", "verify math", "check equations", "检查公式", or mentions formula errors in a markdown file. Covers the whole repo.
+description: This skill should be used when the user asks to "check formulas", "verify math", "check equations", "检查公式", or mentions formula errors in a markdown file. Covers the whole book.
 version: 1.0.0
 ---
 
@@ -14,8 +14,8 @@ version: 1.0.0
 
 ## Scope
 
-**整个仓库通用** —— 书稿面向的是 GitHub 的 Markdown 渲染和 VitePress 站点，公式格式要求一致。
-与 `check-prose` 共用仓库根的 `.claude/lint-scope.json` 做区域豁免和排除（格式见那个技能的
+**整本书通用** —— 书稿面向的是 GitHub 的 Markdown 渲染和 VitePress 站点，公式格式要求一致。
+与 `check-prose` 共用本书根目录的 `.claude/lint-scope.json` 做区域豁免和排除（格式见那个技能的
 SKILL.md）；目前公式规则在所有区域都全开，只排除了 `CLAUDE.md` 这类非书稿文件。
 
 ## Steps
@@ -23,7 +23,7 @@ SKILL.md）；目前公式规则在所有区域都全开，只排除了 `CLAUDE.
 检查和修复均有对应脚本，位于 `scripts/` 目录，可传入文件、目录或多个路径：
 
 ```bash
-# 全仓库
+# 全书
 python3 scripts/check.py .
 
 # 单个文件 / 全部章节

@@ -44,11 +44,11 @@ class Config:
         self.num_attention_heads = self.raw["num_attention_heads"]    # 9
         self.num_key_value_heads = self.raw["num_key_value_heads"]    # 3
 
-        # 第七章新要的三个，都是RoPE用的。RoPE一个可训练参数都没有，
-        # 全靠这几个数算出一张三角函数表。
-        self.rope_theta = self.raw["rope_theta"]                      # 100000
-        self.rope_interleaved = self.raw["rope_interleaved"]          # false
-        self.max_position_embeddings = self.raw["max_position_embeddings"]  # 8192
+        # 第七章新要的三个，都是RoPE用的，值分别是100000、false和8192。
+        # RoPE一个可训练参数都没有，全靠这几个数算出一张三角函数表。
+        self.rope_theta = self.raw["rope_theta"]
+        self.rope_interleaved = self.raw["rope_interleaved"]
+        self.max_position_embeddings = self.raw["max_position_embeddings"]
 
     def __repr__(self):
         return (f"Config(hidden_size={self.hidden_size}, "

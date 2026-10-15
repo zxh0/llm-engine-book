@@ -8,10 +8,10 @@
 draw.io 先导出透明背景的 PNG，再让无头 Chrome 把它叠到画好网格的白底上截图。
 网格的尺寸和颜色，是从 VS Code 插件里截的旧图上量出来的。
 
-导完再调用仓库的 shrink-images 技能（.claude/skills/shrink-images/），把刚导出的图
+导完再调用本书的 shrink-images 技能（.claude/skills/shrink-images/），把刚导出的图
 压成8位调色板，一般能省一半多。压缩要用 uv，第一次会下载 pillow。
 
-用法（在仓库根目录下）：
+用法（在本书根目录下）：
     python3 export_drawio.py ch06             # 也可以写成 6
     python3 export_drawio.py ch06 view        # 只导出页名是 view 的那一页
     python3 export_drawio.py ch06 view mask   # 可以一次写好几页
@@ -32,9 +32,8 @@ from pathlib import Path
 
 DRAWIO = "/Applications/draw.io.app/Contents/MacOS/draw.io"
 CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-ROOT = Path(__file__).resolve().parent  # 仓库根
-REPO = ROOT
-SHRINK = REPO / ".claude" / "skills" / "shrink-images" / "scripts" / "shrink.py"
+ROOT = Path(__file__).resolve().parent  # 本书根目录
+SHRINK = ROOT / ".claude" / "skills" / "shrink-images" / "scripts" / "shrink.py"
 
 SCALE = 2    # 正文用 zoom:50%，两倍图在高分屏上正好清楚
 BORDER = 10  # 四周留白，单位是 draw.io 里的单位，导出后乘以 SCALE
@@ -124,8 +123,8 @@ def shrink(pngs):
         print("  没找到 uv，跳过压缩。可以装上 uv 以后重新导出，或者加 --no-shrink 不压缩")
         return
     print("\n压缩：", flush=True)
-    cmd = [uv, "run", "--native-tls", "--no-project", str(SHRINK)] + [str(p.relative_to(REPO)) for p in pngs]
-    result = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True)
+    cmd = [uv, "run", "--native-tls", "--no-project", str(SHRINK)] + [str(p.relative_to(ROOT)) for p in pngs]
+    result = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
     for line in result.stdout.splitlines():
         print(f"  {line}" if line else "")
     if result.returncode != 0:

@@ -25,6 +25,7 @@ const PUBLISHED = new Set([
   'ch04_embedding.md',
   'ch05_norm.md',
   'ch06_attn.md',
+  'ch07_rope.md',
 ])
 
 // 工具：tools/<目录>/ 下的纯静态单页，整个目录原样拷到 docs/public/tools/<目录>/，

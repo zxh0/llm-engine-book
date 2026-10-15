@@ -28,11 +28,14 @@ Three standing conventions from the preface that the manuscript must honour:
 | `code/book/` | the book's code: one directory per chapter, `ch01/`…`ch12/`. **New work goes here.** `ch01/`–`ch08/`, `ch10/` and `ch11/` are written so far (ch09 is theory only, so `ch10/` copies `ch08/`). In `ch11/`, `NO_CACHE` must reproduce ch10 bit for bit, and the engine feeds `ids[cache.length:]` instead of branching on the cache. |
 | `code/poc/` | the original proof of concept. **Frozen reference, not the book's code.** |
 | `code/models/`, `code/reference/` | weights and baseline tensors, shared by both trees, gitignored |
-| `tools/<name>/` | standalone single-file web tools, one directory each: an `index.html` with no build step plus a repo-only `README.md`. Three so far: `safetensors-viewer` (ch02), `sinpe-heatmap` and `rope-angles` (ch07) |
-| `scripts/build-site.mjs`, `docs/` | the VitePress site, see **Site** below. `docs/chapters/`, `docs/public/` and `docs/.vitepress/sidebar.json` are generated and gitignored |
-| `.claude/skills/`, `.claude/lint-scope.json` | the lint / image / polish skills, see **Linters** below |
 
-There is **no** `Book.md` and no `merge.py` here (unlike the `ann4us` book in the author's `ann-book` repo). The table of contents lives in `_preface.md` under 本书结构; chapter order is otherwise carried by the filenames.
+| `tools/` | standalone HTML tools the chapters point readers to (`sinpe-heatmap/`, `rope-angles/`, `safetensors-viewer/`): one `index.html` each, no build step, plus a `README.md` |
+| `export_drawio.py` | exports one chapter's `draw/chNN.drawio` page by page into `images/chNN/`, then shrinks the PNGs |
+| `.claude/` | this book's own skills (`check-formulas`, `check-prose`, `polish-prose`, `shrink-images`) and `lint-scope.json` |
+
+**The book directory is self-contained.** Everything it needs, the skills and lint config included, lives under this directory. Never reference, import or run anything from a parent directory or a sibling book; if a rule or script is needed, keep a copy here.
+
+There is **no** `Book.md` and no `merge.py` here. The table of contents lives in `_preface.md` under 本书结构; chapter order is otherwise carried by the filenames.
 
 **Read `code/CLAUDE.md` before writing any code.** It records the environment pins, the verified SmolLM2 config values, and the tokenizer / RoPE / KV-cache gotchas that were found the hard way. Reuse those findings rather than rediscovering them — but do not copy `poc/`'s file layout or API, since `book/` is deliberately a different take (one self-contained directory per chapter). Extending `poc/` is not the task.
 
@@ -88,9 +91,8 @@ Downloads (weights, `uv sync`) must bypass Claude Code's proxy — prefix with
 
 ## Writing conventions
 
-Prose is **Simplified Chinese**; code, identifiers, filenames, and diagram names are English. No space between CJK and Latin/digits (`SmolLM2模型`, not `SmolLM2 模型`); full-width Chinese quotes `“”`, never `""`. The author dislikes em-dashes (`——`) — use a comma, a colon, or split the sentence.
-
-Notation follows Goodfellow's *Deep Learning*: scalars lowercase ($x$, $w$), vectors **bold lowercase** (`\mathbf{x}`, Greek `\boldsymbol{\alpha}`), **matrices bold uppercase** (`\mathbf{W}`, `\mathbf{Q}`); non-bold means a plain quantity regardless of case; arrow vectors (`\vec{x}`) are wrong. The full convention is in `.claude/skills/polish-prose/SKILL.md`, and the linter sub-rule 符号记法/粗体大写 is switched off for this repo in `.claude/lint-scope.json` so that bold matrices do not get flagged.
+- **Language and punctuation.** Prose is Simplified Chinese; code, identifiers, filenames and diagram names are English. No space between CJK and Latin/digits (`SmolLM2模型`, not `SmolLM2 模型`). Full-width Chinese quotes `“”`, never `""`. No em-dashes (`——`): use a comma, a colon, or split the sentence.
+- **Notation: matrices are bold uppercase.** This book follows Goodfellow's scheme: bold lowercase = vector ($\mathbf{q}_m$, $\mathbf{x}$), **bold uppercase = matrix** ($\mathbf{Q}$, $\mathbf{W}_Q$, $\mathbf{R}_m$), unbolded = a plain count or scalar ($d$, $T$, $m\theta_i$). ch06 and ch07 are written this way; do not "fix" bold matrices to plain. `.claude/lint-scope.json` disables `符号记法/粗体大写` for that reason. Greek vectors still need `\boldsymbol`, and `\vec{}` is still wrong.
 
 - **Em-dash cleanup is in progress**: 110 `——` remain in ch06–ch12 and `_preface.md`, from before the author's voice pass. Clear them as each chapter gets rewritten rather than in one sweep. (ch01–ch05 are clean.)
 - **The model is always `SmolLM2`, never `SmolLM`.** This typo has recurred several times; grep for `SmolLM[^2]` after editing.
@@ -108,11 +110,11 @@ Notation follows Goodfellow's *Deep Learning*: scalars lowercase ($x$, $w$), vec
 
 ### Linters
 
-Both live in `.claude/skills/` and are run from the repo root:
+Both live in this book's own `.claude/skills/`, and read their per-file rule scoping from `.claude/lint-scope.json`. Run them from the book root (this directory):
 
 ```bash
-python3 .claude/skills/check-formulas/scripts/check.py chapters/chNN_slug.md   # LaTeX formatting for rendering
-python3 .claude/skills/check-prose/scripts/check.py    chapters/chNN_slug.md   # Chinese body text
+python3 .claude/skills/check-formulas/scripts/check.py chapters/chNN_slug.md
+python3 .claude/skills/check-prose/scripts/check.py    chapters/chNN_slug.md
 ```
 
 `check-formulas` rules: inline `$...$` needs surrounding spaces, blank lines around block formulas, `\begin{aligned}` for multi-line, `\tag{}` after `\end{aligned}`, no `\operatorname`, multi-letter function names in `\mathrm{}`. `check-prose` rules: 符号记法统一 (notation), 尽量不用破折号 (em-dash), 公式用 `$`/代码用反引号 (math-vs-code). Per-file exemptions live in `.claude/lint-scope.json`: `CLAUDE.md`, `todo.md`, `node_modules/` and the generated `docs/` are excluded outright, and 符号记法/粗体大写 is off everywhere (bold matrices are this book's convention). Exempted counts are reported, never silently dropped; `--all-rules` puts them back for one run.

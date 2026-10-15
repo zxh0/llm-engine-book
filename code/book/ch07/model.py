@@ -79,22 +79,24 @@ class Model:
             inv_freq[i] = 1 / rope_theta ** (2i / 64)     i = 0 .. 31
 
         i越小转得越快，i越大转得越慢。表只和位置有关，和输入无关，
-        所以启动时算一次，30层、每一圈都查同一张表。
+        所以启动时算一次，30层、每生成一个词元都查同一张表。
         """
-        head_dim = self.config.hidden_size // self.config.num_attention_heads  # 64
-        theta = self.config.rope_theta                         # 100000，不是常见的10000
+        cfg = self.config
+        head_dim = cfg.hidden_size // cfg.num_attention_heads # 64
+        theta = cfg.rope_theta # 100000，不是常见的10000
         # 下面的rotate_half按隔半个头配对。config要是说相邻配对，这里就算错了，
         # 而且不报错，所以先拦一下。
-        assert not self.config.rope_interleaved
+        assert not cfg.rope_interleaved
 
-        # 这一行照抄transformers的写法：先用整数排好0, 2, ..., 62，再转成浮点数。
+        # 照抄transformers的算法：先用整数排好0, 2, ..., 62，再转成浮点数。
         # 写法不同，inv_freq的最后一位就可能不同。
-        inv_freq = 1.0 / theta ** (torch.arange(0, head_dim, 2).float() / head_dim)  # (32,)
+        exponent = torch.arange(0, head_dim, 2).float() / head_dim # (32,)
+        inv_freq = 1.0 / theta ** exponent # (32,)
 
-        positions = torch.arange(self.config.max_position_embeddings).float()  # (8192,)
-        angles = torch.outer(positions, inv_freq)              # (8192, 32)
+        positions = torch.arange(cfg.max_position_embeddings).float() # (8192,)
+        angles = torch.outer(positions, inv_freq) # (8192, 32)
         # 第i维和第i+32维是一对，转同一个角度，所以32个角度抄两遍，拼成64个。
-        angles = torch.cat((angles, angles), dim=-1)           # (8192, 64)
+        angles = torch.cat((angles, angles), dim=-1) # (8192, 64)
         return angles.cos(), angles.sin()
 
     def rotate_half(self, x):
@@ -104,10 +106,10 @@ class Model:
 
         第i维和第i+32维配成一对，叫half-split，transformers就是这么写的。
         原始论文配的是相邻两维(0,1), (2,3), ...，两种都是真旋转，都能生成通顺
-        的文本，用错了不报错，只有对拍分得出来。
+        的文本，用错了不报错，只有和transformers核对才分得出来。
         """
-        a, b = x.chunk(2, dim=-1)                              # 各(..., 32)
-        return torch.cat((-b, a), dim=-1)                      # (..., 64)
+        a, b = x.chunk(2, dim=-1) # 各(..., 32)
+        return torch.cat((-b, a), dim=-1) # (..., 64)
 
     def rope(self, x):
         """旋转位置编码：第m个位置转m倍的角度，(heads, T, 64) → (heads, T, 64)。
@@ -121,8 +123,8 @@ class Model:
         「谁和谁匹配」，不是「匹配上了取什么内容」。
         """
         T = x.shape[-2]
-        cos, sin = self.cos[:T], self.sin[:T]                  # 各(T, 64)，位置从0数起
-        return x * cos + self.rotate_half(x) * sin            # 广播到每个头
+        cos, sin = self.cos[:T], self.sin[:T] # 各(T, 64)，位置从0数起
+        return x * cos + self.rotate_half(x) * sin # 广播到每个头
 
     def attn(self, x, layer):
         """注意力机制：(T, 576) → (T, 576)，形状不变。

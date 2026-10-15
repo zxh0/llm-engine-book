@@ -1,6 +1,6 @@
 ---
 name: shrink-images
-description: This skill should be used when the user asks to "压缩图片", "压一下图", "图太大了", "shrink images", "compress images", or right after new illustrations are exported into a chapter's images/ directory. Covers the whole repo.
+description: This skill should be used when the user asks to "压缩图片", "压一下图", "图太大了", "shrink images", "compress images", or right after new illustrations are exported into a chapter's images/ directory. Covers the whole book.
 version: 1.0.0
 ---
 
@@ -19,14 +19,14 @@ AI 生成的章首图省 25% 左右且像素不变。
 
 ## Scope
 
-**整个仓库通用** —— `images/` 和 `aigc/` 都适用。只认 PNG，
-仓库里也只有 PNG。
+**整本书通用** —— `images/` 和 `aigc/` 都适用。只认 PNG，
+书里也只有 PNG。
 
-与两个 lint 技能共用仓库根的 `.claude/lint-scope.json`，其中 `exclude` 里的
+与两个 lint 技能共用本书根目录的 `.claude/lint-scope.json`，其中 `exclude` 里的
 `docs/**` 和 `node_modules/**` 会被跳过，点目录（`.venv` 等）也跳过。
-所以直接把仓库根传进去是安全的。
+所以直接把本书根目录传进去是安全的。
 
-**改的是仓库里的源图**（`images/`、`aigc/`），
+**改的是书里的源图**（`images/`、`aigc/`），
 不是 `docs/public/` 下的拷贝。压完记得重新生成站点内容：
 
 ```bash
@@ -42,7 +42,7 @@ uv run --no-project .claude/skills/shrink-images/scripts/shrink.py images/ch04/
 # 先看看能省多少，不写文件
 uv run --no-project .claude/skills/shrink-images/scripts/shrink.py --dry-run aigc/
 
-# 扫全仓库，看还有哪些图没压过
+# 扫全书，看还有哪些图没压过
 uv run --no-project .claude/skills/shrink-images/scripts/shrink.py --dry-run .
 
 # 多个路径一起传，文件和目录混着都行
@@ -53,7 +53,7 @@ uv run --no-project .claude/skills/shrink-images/scripts/shrink.py images/ch04/ 
 pillow，既不碰 `code/` 那个 uv 项目，也不往系统 python 里装东西。
 系统 `python3` 是 3.9 且没有 pillow，所以**不能**直接 `python3 shrink.py`。
 
-第一次跑要下载 pillow，和仓库里其他下载一样，得绕开 Claude Code 的代理；只绕开代理还会报
+第一次跑要下载 pillow，和书里其他下载一样，得绕开 Claude Code 的代理；只绕开代理还会报
 `invalid peer certificate: UnknownIssuer`，所以还要加 `--native-tls`，让 uv 用系统的证书：
 
 ```bash
@@ -83,7 +83,7 @@ PDF 都是白底；`export_drawio.py` 导出的已经是白底或网格底，这
 | 0.2 ~ 0.5 | 拿不准，只做第一步，报出误差；确实要压，显式加 `--palette` |
 | > 0.5 | 照片或渐变图，只做第一步 |
 
-阈值是照仓库里这几类图实测出来的，量化到 256 色的平均误差分别是：
+阈值是照书里这几类图实测出来的，量化到 256 色的平均误差分别是：
 
 | 图 | 平均误差 | 前 256 色覆盖的像素 |
 |---|---|---|
@@ -132,7 +132,7 @@ images/plot.png
 
 ## 注意事项
 
-- **贴白底是不可逆的。** 仓库里 ch01~ch03 的插图本来就是这样（`type3 + PLTE`，无
+- **贴白底是不可逆的。** 书里 ch01~ch03 的插图本来就是这样（`type3 + PLTE`，无
   tRNS），站点和 PDF 也都是白底。站点以后若要做深色模式，这条约定得重新考虑。
 - **量化是有损的。** 对线稿图肉眼无差别，对渐变会出色带。脚本的默认阈值已经挡住了
   这类图，别随手加 `--palette` 绕过去。
