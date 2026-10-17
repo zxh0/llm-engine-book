@@ -21,11 +21,11 @@ Three standing conventions from the preface that the manuscript must honour:
 | `chapters/_front.md` | 扉页 — title, English subtitle, version stamp, cover image |
 | `chapters/todo.md` | scratch list of open decisions; **not part of the book**, to be deleted |
 | `chapters/_preface.md` | 前言 — motivation, target reader, reading conventions, tech choices, TOC. Also absorbed the old `ch00.md` (准备). Sorts before `ch01` thanks to the `_` prefix. |
-| `chapters/chNN_slug.md` | manuscript source, one file per chapter, `chNN` matches 第N章. Twelve chapters, `ch01`–`ch12`. |
+| `chapters/chNN_slug.md` | manuscript source, one file per chapter, `chNN` matches 第N章. Fourteen chapters, `ch01`–`ch14`. |
 | `images/chNN/` | exported PNGs, referenced from chapters as `../images/chNN/...` inside `<img ... style="zoom:50%;">` tags |
 | `draw/chNN.drawio` | draw.io sources for those PNGs (ch01–ch06 exist so far) |
 | `code/` | one uv project holding two code trees — see `code/CLAUDE.md` |
-| `code/book/` | the book's code: one directory per chapter, `ch01/`…`ch12/`. **New work goes here.** `ch01/`–`ch08/`, `ch10/` and `ch11/` are written so far (ch09 is theory only, so `ch10/` copies `ch08/`). In `ch11/`, `NO_CACHE` must reproduce ch10 bit for bit, and the engine feeds `ids[cache.length:]` instead of branching on the cache. |
+| `code/book/` | the book's code: one directory per chapter, `ch01/`…`ch12/`. **New work goes here.** `ch01/`–`ch14/` are all written. Like ch09, `ch12/` adds no engine code: its engine files are byte-identical copies of `ch11/`, plus `online_softmax.py` and `flash_attn.py` (a pure-PyTorch tiled attention; on CPU it is *faster* than the one-shot version at block sizes 128–256, because it skips future blocks and fits in cache). `ch14/` adds `device` / `dtype` / `attn_impl` to `Model`; with the defaults it is bit-identical to `ch13/`. The author's machine has no CUDA, so ch14's numbers come from CPU and MPS (torch 2.2's MPS has no bf16). ch09 adds no engine code: its four engine files are byte-identical copies of `ch08/` (an untouched file keeps the header of the chapter that last changed it, as `weights.py` does everywhere), plus three inspection scripts (`residual_stream.py`, `logit_lens.py`, `sinkhorn.py`), so `ch10/` still builds on `ch08/`. In `ch11/`, `NO_CACHE` must reproduce ch10 bit for bit, and the engine feeds `ids[cache.length:]` instead of branching on the cache. |
 | `code/poc/` | the original proof of concept. **Frozen reference, not the book's code.** |
 | `code/models/`, `code/reference/` | weights and baseline tensors, shared by both trees, gitignored |
 
@@ -63,7 +63,14 @@ Order follows the data flow of one forward pass, split into two parts.
 | Ch | Topic | PoC reference |
 |---|---|---|
 | ch11 | KV Cache — prefill / decode | `layers.KVCache` / `NoCache`, `poc/steps/08_kv_cache.py` |
-| ch12 | FlashAttention — online softmax + tiling | not implemented |
+| ch12 | FlashAttention — online softmax + tiling | none (`code/book/ch12/flash_attn.py`) |
+
+**走出去 (13–14)** — same engine, another model, another device:
+
+| Ch | Topic | PoC reference |
+|---|---|---|
+| ch13 | 换一个模型 — Qwen3-0.6B, chapter-by-chapter review of what changes; `--model` picks the directory under `code/models/` | none |
+| ch14 | GPU — device, BF16, batching, FlashAttention measured | none |
 
 Note the chapter order **differs from the order the PoC was built in**, so a chapter's material usually lives in a differently-numbered step script. Three chapters have no single PoC counterpart: ch04 (the embedding/lm_head pair was never its own step), ch09 (the PoC never separated residuals from the Block), and ch12.
 

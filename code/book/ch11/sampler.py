@@ -28,7 +28,7 @@ from tokenizers import Tokenizer
 from model import Model
 from weights import MODEL_DIR
 
-FILTER_VALUE = float("-inf")  # 和因果掩码一样，置成-inf，softmax之后就是0
+FILTER_VALUE = float("-inf") # 和因果掩码一样，置成-inf，softmax之后就是0
 
 
 def apply_temperature(logits, temperature):
@@ -67,11 +67,11 @@ def apply_top_p(logits, p):
     """
     if p >= 1.0:
         return logits
-    sorted_logits, order = torch.sort(logits)              # 升序
-    cumulative = sorted_logits.softmax(-1).cumsum(-1)      # 从最小的累加上去
-    remove = cumulative <= 1 - p                           # 这一段加起来不到1 - p，砍
-    remove[..., -1] = False                                # 最大的那个永远留着，候选集不能空
-    remove = remove.scatter(-1, order, remove)             # 排序后的位置换回词表里的位置
+    sorted_logits, order = torch.sort(logits)          # 升序
+    cumulative = sorted_logits.softmax(-1).cumsum(-1)  # 从最小的累加上去
+    remove = cumulative <= 1 - p                       # 这一段加起来不到1 - p，砍
+    remove[..., -1] = False                            # 最大的那个永远留着
+    remove = remove.scatter(-1, order, remove)         # 换回词表里的位置
     return logits.masked_fill(remove, FILTER_VALUE)
 
 
@@ -92,7 +92,7 @@ class Sampler:
         if temperature < 0:
             raise ValueError("temperature不能是负数")
         if temperature == 0:
-            return GreedySampler()  # T趋于0的极限，不是除以0
+            return GreedySampler() # T趋于0的极限，不是除以0
         return RandomSampler(temperature, top_k, top_p, seed)
 
 
@@ -138,7 +138,7 @@ class RandomSampler(Sampler):
         return apply_top_p(logits, self.top_p)
 
     def __call__(self, logits):
-        probs = self.filter(logits).softmax(-1)            # (49152,)，被砍掉的正好是0
+        probs = self.filter(logits).softmax(-1) # (49152,)，被砍掉的正好是0
         return int(torch.multinomial(probs, 1, generator=self.generator))
 
     def __repr__(self):

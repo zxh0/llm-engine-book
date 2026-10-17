@@ -51,7 +51,7 @@ class Engine:
         ids = list(ids)  # 复制一份，不去改调用方手里那个list
         for _ in range(max_new_tokens):
             next_id = self.infer(ids, sampler)
-            if next_id == self.eos:                        # 模型自己认为说完了
+            if next_id == self.eos: # 模型自己认为说完了
                 return
             ids.append(next_id)
             yield next_id
@@ -67,8 +67,8 @@ class Engine:
         `model.forward`只返回最后一个位置的logits：前面每个位置也都预测了
         「它的下一个词元」，但那些位置的下一个词元我们已经知道了。
         """
-        logits = self.model.forward(ids)                   # (T,) → (49152,)
-        return sampler(logits)                             # (49152,) → 一个ID
+        logits = self.model.forward(ids) # (T,) → (49152,)
+        return sampler(logits)           # (49152,) → 一个ID
 
 
 def main():

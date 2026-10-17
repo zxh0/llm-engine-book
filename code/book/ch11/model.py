@@ -80,22 +80,24 @@ class Model:
             inv_freq[i] = 1 / rope_theta ** (2i / 64)     i = 0 .. 31
 
         i越小转得越快，i越大转得越慢。表只和位置有关，和输入无关，
-        所以启动时算一次，30层、每一圈都查同一张表。
+        所以启动时算一次，30层、每生成一个词元都查同一张表。
         """
-        head_dim = self.config.hidden_size // self.config.num_attention_heads  # 64
-        theta = self.config.rope_theta                         # 100000，不是常见的10000
+        cfg = self.config
+        head_dim = cfg.hidden_size // cfg.num_attention_heads # 64
+        theta = cfg.rope_theta # 100000，不是常见的10000
         # 下面的rotate_half按隔半个头配对。config要是说相邻配对，这里就算错了，
         # 而且不报错，所以先拦一下。
-        assert not self.config.rope_interleaved
+        assert not cfg.rope_interleaved
 
-        # 这一行照抄transformers的写法：先用整数排好0, 2, ..., 62，再转成浮点数。
+        # 照抄transformers的算法：先用整数排好0, 2, ..., 62，再转成浮点数。
         # 写法不同，inv_freq的最后一位就可能不同。
-        inv_freq = 1.0 / theta ** (torch.arange(0, head_dim, 2).float() / head_dim)  # (32,)
+        exponent = torch.arange(0, head_dim, 2).float() / head_dim # (32,)
+        inv_freq = 1.0 / theta ** exponent # (32,)
 
-        positions = torch.arange(self.config.max_position_embeddings).float()  # (8192,)
-        angles = torch.outer(positions, inv_freq)              # (8192, 32)
+        positions = torch.arange(cfg.max_position_embeddings).float() # (8192,)
+        angles = torch.outer(positions, inv_freq) # (8192, 32)
         # 第i维和第i+32维是一对，转同一个角度，所以32个角度抄两遍，拼成64个。
-        angles = torch.cat((angles, angles), dim=-1)           # (8192, 64)
+        angles = torch.cat((angles, angles), dim=-1) # (8192, 64)
         return angles.cos(), angles.sin()
 
     def rotate_half(self, x):
@@ -105,10 +107,10 @@ class Model:
 
         第i维和第i+32维配成一对，叫half-split，transformers就是这么写的。
         原始论文配的是相邻两维(0,1), (2,3), ...，两种都是真旋转，都能生成通顺
-        的文本，用错了不报错，只有对拍分得出来。
+        的文本，用错了不报错，只有和transformers核对才分得出来。
         """
-        a, b = x.chunk(2, dim=-1)                              # 各(..., 32)
-        return torch.cat((-b, a), dim=-1)                      # (..., 64)
+        a, b = x.chunk(2, dim=-1) # 各(..., 32)
+        return torch.cat((-b, a), dim=-1) # (..., 64)
 
     def rope(self, x, start=0):
         """旋转位置编码：第m个位置转m倍的角度，(heads, T, 64) → (heads, T, 64)。
@@ -126,9 +128,9 @@ class Model:
         距离编码，模型悄悄变笨。
         """
         T = x.shape[-2]
-        cos = self.cos[start:start + T]                        # (T, 64)
-        sin = self.sin[start:start + T]                        # (T, 64)
-        return x * cos + self.rotate_half(x) * sin            # 广播到每个头
+        cos = self.cos[start:start + T] # (T, 64)
+        sin = self.sin[start:start + T] # (T, 64)
+        return x * cos + self.rotate_half(x) * sin # 广播到每个头
 
     def attn(self, x, layer, i, cache=NO_CACHE):
         """注意力机制：(T, 576) → (T, 576)，形状不变。
@@ -138,58 +140,59 @@ class Model:
         再过softmax。
 
         9个q头，3个kv头，每3个q头共用一组kv，这就是GQA。
+        拆完头、算分数之前，q和k先按位置转一下，这是第七章加的RoPE。
 
         这一章x不一定是整串了：prefill时是整段prompt，T个；decode时只有
         刚生成的那一个，T为1。前面的k、v从缓存里取，所以分数表从T×T变成
         T×(已存 + T)。`i`是第几层，缓存靠它找到这一层的那一份。
         """
         T = x.shape[0]
-        n_heads = self.config.num_attention_heads              # 9
-        n_kv_heads = self.config.num_key_value_heads           # 3
-        head_dim = self.config.hidden_size // n_heads          # 576 / 9 = 64
-        start = cache.length                                   # x的第0行在第几个位置
+        n_heads = self.config.num_attention_heads     # 9
+        n_kv_heads = self.config.num_key_value_heads  # 3
+        head_dim = self.config.hidden_size // n_heads # 576 / 9 = 64
+        start = cache.length # x的第0行在第几个位置
 
         # 三次线性投影。权重按(out, in)存放，所以要转置。
-        q = x @ layer["q_proj"].T                              # (T, 576) → (T, 576)
-        k = x @ layer["k_proj"].T                              # (T, 576) → (T, 192)
-        v = x @ layer["v_proj"].T                              # (T, 576) → (T, 192)
+        q = x @ layer["q_proj"].T # (T, 576) → (T, 576)
+        k = x @ layer["k_proj"].T # (T, 576) → (T, 192)
+        v = x @ layer["v_proj"].T # (T, 576) → (T, 192)
 
         # 拆头：先把最后一维切成(头数, 64)，再把头挪到最前面。
-        q = q.view(T, n_heads, head_dim).transpose(0, 1)       # (9, T, 64)
-        k = k.view(T, n_kv_heads, head_dim).transpose(0, 1)    # (3, T, 64)
-        v = v.view(T, n_kv_heads, head_dim).transpose(0, 1)    # (3, T, 64)
+        q = q.view(T, n_heads, head_dim).transpose(0, 1)    # (9, T, 64)
+        k = k.view(T, n_kv_heads, head_dim).transpose(0, 1) # (3, T, 64)
+        v = v.view(T, n_kv_heads, head_dim).transpose(0, 1) # (3, T, 64)
 
         # RoPE：q和k按位置转一下，v不动。位置从start起，不是从0起。
-        q = self.rope(q, start)                                # (9, T, 64)
-        k = self.rope(k, start)                                # (3, T, 64)
+        q = self.rope(q, start) # (9, T, 64)
+        k = self.rope(k, start) # (3, T, 64)
 
         # 存的是转过之后的k：位置在写进去那一刻就定了，历史永远不用再转。
         # 存的是复制之前的3个头：缓存只有9个头时的三分之一。
-        k, v = cache.update(i, k, v)                           # (3, T, 64) → (3, L, 64)
-        L = k.shape[1]                                         # start + T
+        k, v = cache.update(i, k, v) # (3, T, 64) → (3, L, 64)
+        L = k.shape[1]               # start + T
 
         # GQA：每个kv头连续复制3份，排成[0,0,0,1,1,1,2,2,2]，对齐9个q头。
         # 写成k.repeat(3, 1, 1)会排成[0,1,2,0,1,2,0,1,2]，形状一样，不报错，全错。
-        group = n_heads // n_kv_heads                          # 3
-        k = k.repeat_interleave(group, dim=0)                  # (3, L, 64) → (9, L, 64)
-        v = v.repeat_interleave(group, dim=0)                  # (3, L, 64) → (9, L, 64)
+        group = n_heads // n_kv_heads         # 3
+        k = k.repeat_interleave(group, dim=0) # (3, L, 64) → (9, L, 64)
+        v = v.repeat_interleave(group, dim=0) # (3, L, 64) → (9, L, 64)
 
-        # 每个头各算一张T×L的分数表：第r行第j列是第start+r个词元的q
-        # 和第j个词元的k的点积。不带缓存时start是0，L就是T，还是那张T×T。
-        scores = q @ k.transpose(1, 2) / head_dim ** 0.5       # (9, T, L)
+        # 每个头各算一张T×L的分数表：第a行第b列是第start+a个词元的q
+        # 和第b个词元的k的点积。不带缓存时start是0，L就是T，还是那张T×T。
+        scores = q @ k.transpose(1, 2) / head_dim ** 0.5 # (9, T, L)
 
-        # 因果掩码：第r行在第start+r个位置，它右边（j > start+r）是未来。
+        # 因果掩码：第a行在第start+a个位置，它右边（b > start+a）是未来。
         # T为1时那唯一一行能看见全部历史，掩码全是False，干脆不建。
         if T > 1:
-            future = torch.ones(T, L, dtype=torch.bool).triu(start + 1)  # (T, L)
+            future = torch.ones(T, L, dtype=torch.bool).triu(start + 1) # (T, L)
             scores = scores.masked_fill(future, float("-inf"))
 
-        probs = torch.softmax(scores, dim=-1)                  # (9, T, L)，每行和为1
-        out = probs @ v                                        # (9, T, 64)
+        probs = torch.softmax(scores, dim=-1) # (9, T, L)，每行和为1
+        out = probs @ v                       # (9, T, 64)
 
         # 拼头：把头挪回去，9个64维首尾相接拼回576维，再过o_proj把各头混合起来。
-        out = out.transpose(0, 1).reshape(T, n_heads * head_dim)  # (T, 576)
-        return out @ layer["o_proj"].T                         # (T, 576) → (T, 576)
+        out = out.transpose(0, 1).reshape(T, n_heads * head_dim) # (T, 576)
+        return out @ layer["o_proj"].T # (T, 576) → (T, 576)
 
     def ffn(self, x, layer):
         """前馈网络，SwiGLU：(T, 576) → (T, 1536) → (T, 576)，形状不变。
@@ -206,12 +209,12 @@ class Model:
         这里每一步都只动最后一维，词元和词元之间互不相干：
         第i行的输出只取决于第i行的输入。
         """
-        gate = x @ layer["gate_proj"].T                        # (T, 576) → (T, 1536)
-        up = x @ layer["up_proj"].T                            # (T, 576) → (T, 1536)
-        # 用F.silu而不是手写z * sigmoid(z)：两种写法数学上相同，
-        # 但最后一位会差，`check_ffn.py`里能看到。用F.silu才和transformers逐位相同。
-        h = F.silu(gate) * up                                  # (T, 1536)
-        return h @ layer["down_proj"].T                        # (T, 1536) → (T, 576)
+        gate = x @ layer["gate_proj"].T # (T, 576) → (T, 1536)
+        up = x @ layer["up_proj"].T     # (T, 576) → (T, 1536)
+        # 用F.silu而不是手写z * sigmoid(z)：两种写法数学上相同，但最后一位
+        # 会差，`check_ffn.py`里能看到。用F.silu才和transformers逐位相同。
+        h = F.silu(gate) * up # (T, 1536)
+        return h @ layer["down_proj"].T # (T, 1536) → (T, 576)
 
     def block(self, x, layer, i, cache=NO_CACHE):
         """一个Decoder块：两个norm、注意力、FFN、两条残差，(T, 576) → (T, 576)。
