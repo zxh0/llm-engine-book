@@ -2,6 +2,8 @@
 
 写书的过程中顺手做的几个纯前端小工具，都是单个 HTML 文件，打开就能用。所有计算都在浏览器里完成，不需要后端，也不会把你的数据传到我这里来。
 
+![小工具](/aigc/tools.png)
+
 <script setup>
 import { withBase } from 'vitepress'
 import { tools } from './.vitepress/sidebar.json'
