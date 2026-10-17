@@ -6,6 +6,8 @@
 
 在线阅读（支持全文搜索和公式渲染）：https://zxh0.github.io/llm-engine-book/
 
+PDF 版本：https://github.com/zxh0/llm-engine-book/releases
+
 目标模型是 **SmolLM2-135M**，跑在**笔记本 CPU** 上。全程不使用 `transformers` 的建模代码——分词、权重加载、RMSNorm、RoPE、GQA、SwiGLU、KV Cache、采样、生成循环，全部自己写。慢，但每一个数字都能和 HuggingFace 对上。
 
 主张很简单：
@@ -14,7 +16,7 @@
 >
 > 从 GPU 入手，会比较难；从 CPU 入手，就比较简单，然后再去学 GPU。
 
-完整的写作动机、目标读者和阅读约定，见 [前言](chapters/_preface.md)。
+完整的写作动机、目标读者和阅读约定，见 [前言](chapters/_preface.md)。想要全书合成一个文件的版本，在本地运行 `python3 merge.py` 生成 `Book.md`。
 
 ## 目录
 
@@ -47,6 +49,7 @@
 | 路径 | 说明 |
 |---|---|
 | `chapters/` | 书稿，一章一个文件；`_front.md` 是扉页，`_preface.md` 是前言 |
+| `merge.py` | 把 `chapters/` 合并成全书单文件 `Book.md`（本地生成，不入库） |
 | `code/` | 代码，见 [code/README.md](code/README.md) |
 | `images/` | 章节配图（PNG） |
 | `draw/` | 配图的 draw.io 源文件 |

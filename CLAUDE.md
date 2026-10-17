@@ -19,11 +19,13 @@ Three standing conventions from the preface that the manuscript must honour:
 | Path | Role |
 |------|------|
 | `chapters/_front.md` | 扉页 — title, English subtitle, version stamp, cover image |
-| `chapters/todo.md` | scratch list of open decisions; **not part of the book**, to be deleted |
+| `chapters/todo.md` | scratch list of open decisions; **not part of the book**, to be deleted. `merge.py` skips it |
 | `chapters/_preface.md` | 前言 — motivation, target reader, reading conventions, tech choices, TOC. Also absorbed the old `ch00.md` (准备). Sorts before `ch01` thanks to the `_` prefix. |
 | `chapters/chNN_slug.md` | manuscript source, one file per chapter, `chNN` matches 第N章. Fourteen chapters, `ch01`–`ch14`. |
 | `images/chNN/` | exported PNGs, referenced from chapters as `../images/chNN/...` inside `<img ... style="zoom:50%;">` tags |
 | `draw/chNN.drawio` | draw.io sources for those PNGs (ch01–ch06 exist so far) |
+| `Book.md` | **generated** single-file manuscript, gitignored, never edit by hand — see `merge.py` below |
+| `merge.py` | the generator: `python3 merge.py` (regenerate), `--check` (exit 1 if `Book.md` is out of sync with `chapters/`, version stamp ignored), `-o` (write elsewhere) |
 | `code/` | one uv project holding two code trees — see `code/CLAUDE.md` |
 | `code/book/` | the book's code: one directory per chapter, `ch01/`…`ch12/`. **New work goes here.** `ch01/`–`ch14/` are all written. Like ch09, `ch12/` adds no engine code: its engine files are byte-identical copies of `ch11/`, plus `online_softmax.py` and `flash_attn.py` (a pure-PyTorch tiled attention; on CPU it is *faster* than the one-shot version at block sizes 128–256, because it skips future blocks and fits in cache). `ch14/` adds `device` / `dtype` / `attn_impl` to `Model`; with the defaults it is bit-identical to `ch13/`. The author's machine has no CUDA, so ch14's numbers come from CPU and MPS (torch 2.2's MPS has no bf16). ch09 adds no engine code: its four engine files are byte-identical copies of `ch08/` (an untouched file keeps the header of the chapter that last changed it, as `weights.py` does everywhere), plus three inspection scripts (`residual_stream.py`, `logit_lens.py`, `sinkhorn.py`), so `ch10/` still builds on `ch08/`. In `ch11/`, `NO_CACHE` must reproduce ch10 bit for bit, and the engine feeds `ids[cache.length:]` instead of branching on the cache. |
 | `code/poc/` | the original proof of concept. **Frozen reference, not the book's code.** |
@@ -35,7 +37,7 @@ Three standing conventions from the preface that the manuscript must honour:
 
 **The book directory is self-contained.** Everything it needs, the skills and lint config included, lives under this directory. Never reference, import or run anything from a parent directory or a sibling book; if a rule or script is needed, keep a copy here.
 
-There is **no** `Book.md` and no `merge.py` here. The table of contents lives in `_preface.md` under 本书结构; chapter order is otherwise carried by the filenames.
+`merge.py` concatenates `_front.md`, `_preface.md` and `chNN_*.md` sorted by filename (`todo.md` is skipped) and, on the way through: demotes every heading one level outside code fences (`#` → `##`, so the book title in `_front.md` stays the only H1), inserts the page-break `<div>` between chapters, rewrites every relative asset path `../` → `./`, inserts the 自动生成 banner under the H1, and stamps `版本：vYYYY.MM.DD` with today's date. So **chapter files keep their H1 chapter titles, must not contain the page-break div or the banner**, and asset paths in `chapters/` are always written `../images/...` / `../aigc/...`. Run it after editing any chapter; the linters skip `Book.md` by name. The table of contents lives in `_preface.md` under 本书结构; chapter order is otherwise carried by the filenames.
 
 **Read `code/CLAUDE.md` before writing any code.** It records the environment pins, the verified SmolLM2 config values, and the tokenizer / RoPE / KV-cache gotchas that were found the hard way. Reuse those findings rather than rediscovering them — but do not copy `poc/`'s file layout or API, since `book/` is deliberately a different take (one self-contained directory per chapter). Extending `poc/` is not the task.
 
