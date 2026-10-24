@@ -19,6 +19,7 @@ uv run python book/ch08/engine.py          # 接上两头转20圈，第一次说
 uv run python book/ch08/check_ffn.py       # ffn和LlamaMLP对拍
 uv run python book/ch08/check_forward.py   # 整机对拍，四级验收
 uv run python book/ch08/inspect_attn.py    # 填上FFN，再看注意力在看哪
+uv run book/ch08/plot_af.py                # 画激活函数曲线（注意没有python）
 ```
 
 ## 文件
@@ -31,6 +32,7 @@ uv run python book/ch08/inspect_attn.py    # 填上FFN，再看注意力在看�
 | `weights.py` | 第二章那个，**一字未改** |
 | `check_ffn.py` | **这一章新增**。拿`ffn`和transformers的`LlamaMLP`对拍，再故意做错三种看看量级 |
 | `check_forward.py` | **这一章新增**。整条流水线和第一章的基准对拍，不导入transformers |
+| `plot_af.py` | **这一章新增**。画Sigmoid（虚线）、ReLU、GELU、SiLU四条曲线，先打印正文引用的取值表和最低点。要用matplotlib，它不在项目依赖里，脚本开头用PEP 723单独声明，所以运行时不写`python` |
 | `inspect_attn.py` | 第七章那个，一行没改。填上FFN以后再打一遍：注意力权重三层都和真模型对上，30层后各位置不再被抹平 |
 
 ## FFN做了什么

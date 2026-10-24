@@ -15,7 +15,7 @@
 | G1 | **第十四章的CUDA数字，一共5处**`<!-- TODO CUDA -->`：在Colab或云GPU上依次跑`check_device.py`、`speed.py`、`batch.py --dtype bfloat16 --max-batch 64`、`flash.py --max-t 16384`（`--device cuda`），把表补进正文；峰值显存只有CUDA量得到。环境：Linux+CUDA上torch不受`<2.3`限制，顺便定下A5/A6的环境说明放哪（C23） | `ch14_gpu.md`第107、159、201、251、298行附近 |
 | G2 | **后记**：前言承诺了“然后再去学训练”那条路，还有量化、vLLM、llama.cpp；GPU和批处理已经挪进第十四章，不用再写（C7、F19、A1） | 新文件 |
 | G3 | **致谢**（C8） | `_preface.md` |
-| G4 | **第八章两张图**：`act.png`（ReLU/GELU/SiLU三条曲线）、`swiglu.png`（SwiGLU版FFN），正文留了`<!-- TODO 插图 -->`（C15） | `ch08_ffn.md`第83、149行附近 |
+| ~~G4~~ | **已完成（2026-10-24）**：第八章的图齐了。`af.png`由`code/book/ch08/plot_af.py`画出；`ffn2017`、`glu`、`swi-glu`、`ffn2020`由作者在`draw/ch08.drawio`重画；原计划的`swiglu.png`不再需要，`ffn2020`加上“三个矩阵”一节的四步形状已经够用；“参数大头”一节借用第二章的`layer.png` | |
 
 **图**
 
@@ -102,7 +102,7 @@ B1 已定（见 D 节）：残差挪到后面一章讲。B2 是它的另一面�
 | C11 | **图片改用命令行导出，代替手动截图。已完成（2026-10-13）**：`export_drawio.py`（本书根目录）按页名导出一章或单页，自动加编辑器网格（无头 Chrome 合成），导完调用 shrink-images 技能压缩。第六章已全部导出；`view` 页还带着多余的示意，导出前要先挪走 | 用法见脚本开头的说明 |
 | C13 | **HTML小工具的目录和正文说法对不上。** 第七章说两个小工具在「随书源代码的`tools/sinpe-heatmap/`」和「`tools/rope-angles/`」目录下，但`tools/`在书的根目录，不在`code/`下面。发布前要定下读者实际拿到的目录结构（`tools/`并进`code/`，还是正文改口），再回头改第七章「正弦位置编码」和「怎么旋转」两节里介绍工具的那两段 | 2026-10-15 记录 |
 | C14 | **代码块行宽。** 出版排版按80列（中文算2列）控制。第七章已全部压到80列以内；ch04、ch05、ch06各还有一两行脚本输出超宽（长的`词元`/`ID`列表），ch06还有一行注释（`k.repeat(3, 1, 1)`那行，82列）。改完要逐个代码块按显示宽度复查 | 引用的脚本输出是原样照抄的，缩短要从脚本的打印格式改起 |
-| C15 | **第八章还缺两张图（正文里留了`<!-- TODO 插图 -->`注释）**：`act.png`（ReLU/GELU/SiLU三条曲线）、`swiglu.png`（SwiGLU版FFN，参考笔记的`ffn2.png`，换成576/1536和gate/up/down）。`ffn2017.png`和`moe.png`是从`ai_book/notes/images/moe/`复制的`ffn1.png`、`moe1.png`，drawio源在`ai_book/notes/draw/latent_moe.drawio`的FFN、MoE两页，还没并进`draw/ch08.drawio` | 2026-10-17 |
+| C15 | **第八章还缺两张图（正文里留了`<!-- TODO 插图 -->`注释）**：`af.png`（ReLU/GELU/SiLU三条曲线）、`swiglu.png`（SwiGLU版FFN，参考笔记的`ffn2.png`，换成576/1536和gate/up/down）。`ffn2017.png`和`moe.png`是从`ai_book/notes/images/moe/`复制的`ffn1.png`、`moe1.png`，drawio源在`ai_book/notes/draw/latent_moe.drawio`的FFN、MoE两页，还没并进`draw/ch08.drawio` | 2026-10-17 |
 | C16 | **第八章的术语待作者定**：Attention Sink译成“注意力汇聚点”是临时译法；MoE一节的路由器公式取自Mixtral论文（先TopK后Softmax），DeepSeek系是先算分数再TopK，正文没展开 | |
 | C17 | **第九章（2026-10-17初稿）待核实/待定**：①按F7改成“残差流”结构，新增`code/book/ch09/`（四个引擎文件与ch08逐字节相同，加`residual_stream.py`、`logit_lens.py`、`sinkhorn.py`）；②前言约定一已补一句“第九章是唯一例外”；③HC/mHC/AttnRes的论文年份、DeepSeek-V4取n=4和Sinkhorn 20次、Kimi K3用AttnRes，都取自`ai_book/notes`，出版前核一遍；④插图从笔记复制：`nores/res/hc.png`来自`ds4/mhc1-3`，`sum/attnres/attnres_qkv/attnres_block.png`来自`attn_res/hc2,hc3,qkv,hc4`，drawio源未并进`draw/ch09.drawio`；HC两图用X/F记号、AttnRes图用h/f，正文已说明 | |
 | ~~C18~~ | **已同步（2026-10-17）**：`ch10/model.py`换成ch08那份，`config.py`的RoPE注释按ch08改。原问题：**`code/book/ch10/model.py`、`config.py`、`engine.py`和ch08不一致**，ch10是在ch07/ch08同步之前复制的，写第十章前要像ch08那样同步一遍 | 2026-10-17 发现 |
