@@ -172,7 +172,7 @@ $$
 
 ## 旋转位置编码
 
-**旋转位置编码**（Rotary Position Embedding，简称**RoPE**）出自2021年苏剑林等人的论文《RoFormer: Enhanced Transformer with Rotary Position Embedding》。如今Llama、Qwen、Mistral等主流模型用的都是RoPE，或者它的变种，SmolLM2也不例外。
+**旋转位置编码**（Rotary Position Embedding，简称**RoPE**）出自2021年苏剑林等人的论文《RoFormer: Enhanced Transformer with Rotary Position Embedding》（arXiv:2104.09864）。如今Llama、Qwen、Mistral等主流模型用的都是RoPE，或者它的变种，SmolLM2也不例外。
 
 如果你已经理解了正弦位置编码，那RoPE就不难懂了。正弦位置编码是先根据位置算出一个向量，再加到词嵌入上；RoPE不加任何东西，而是直接把Q和K转一个角度，转多少由位置决定。RoPE放在注意力机制的内部，我们把第六章那张把整个注意力过程画在一起的图拿过来，在上面补上RoPE，用红字和箭头标了出来，如下图所示：
 

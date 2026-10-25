@@ -26,9 +26,9 @@
 
 把第六章的那组公式过一遍，你会发现，除了Softmax，注意力里剩下的全是线性运算：Q、K、V是输入乘上一个矩阵，输出是V的加权求和，最后再乘一个 $\mathbf{W}_O$ 。Softmax虽然不是线性的，但它只管算权重，被加起来的V并不经过它。所以，注意力干的事情，说到底是把各个位置的V按权重**混合**起来，它擅长的是“从上下文里收集信息”。至于每个位置收集到信息之后，要在自己内部做什么样的加工，注意力就无能为力了。这个活交给FFN。一个常见的说法是：注意力负责收集，FFN负责消化。一个Decoder块就是先收集、再消化，重复30次。
 
-这件事我们在前两章其实已经亲眼看到了。第七章的引擎有注意力、有RoPE，就是没有FFN，30层走完之后，“Once upon a time”这4个位置两两之间的余弦全都在0.992以上，几乎被抹成了同一个向量。只有注意力，一层层加权平均下去，各个位置就会越来越像。这个现象有人专门研究过，2021年有一篇论文，标题就叫《Attention is not all you need: pure attention loses rank doubly exponentially with depth》，显然是冲着2017年那篇论文去的。我们在第七章看到的，正是这件事的一个小样本。
+这件事我们在前两章其实已经亲眼看到了。第七章的引擎有注意力、有RoPE，就是没有FFN，30层走完之后，“Once upon a time”这4个位置两两之间的余弦全都在0.992以上，几乎被抹成了同一个向量。只有注意力，一层层加权平均下去，各个位置就会越来越像。这个现象有人专门研究过，2021年有一篇论文，标题就叫《Attention is Not All You Need: Pure Attention Loses Rank Doubly Exponentially with Depth》（arXiv:2103.03404），显然是冲着2017年那篇论文去的。我们在第七章看到的，正是这件事的一个小样本。
 
-最后提一句机理方面的说法，免得你在别处看到时不知道是怎么回事。2021年Geva等人的论文《Transformer Feed-Forward Layers Are Key-Value Memories》，把FFN看成一种**键值记忆**：第一个矩阵的每一列，像是一个要匹配的模式，输入和它越像，激活值就越大；第二个矩阵对应的那一行，则是匹配上之后要取出的内容。按这个说法，模型学到的事实性知识，有相当一部分存在FFN里。这和第六章的Q、K、V有几分神似，不过它只是一种解释，并不是定论。本书按约定不深究，知道有这么个说法就行。
+最后提一句机理方面的说法，免得你在别处看到时不知道是怎么回事。2021年Geva等人的论文《Transformer Feed-Forward Layers Are Key-Value Memories》（arXiv:2012.14913），把FFN看成一种**键值记忆**：第一个矩阵的每一列，像是一个要匹配的模式，输入和它越像，激活值就越大；第二个矩阵对应的那一行，则是匹配上之后要取出的内容。按这个说法，模型学到的事实性知识，有相当一部分存在FFN里。这和第六章的Q、K、V有几分神似，不过它只是一种解释，并不是定论。本书按约定不深究，知道有这么个说法就行。
 
 
 
@@ -73,9 +73,9 @@ $$
 
 **ReLU**（Rectified Linear Unit）最简单，正数原样放过，负数一律换成0。它在2010年前后流行起来，取代了Sigmoid。原因主要在训练里：网络一深，用Sigmoid就很难训练，换成ReLU就好得多。按本书的约定，这里只说结论。另外，ReLU算起来也便宜，只是一次比较，Sigmoid却要算一次指数。2012年那个让深度学习一炮而红的AlexNet用的就是ReLU，2017年的Transformer也沿用了它。
 
-**GELU**（Gaussian Error Linear Unit）出自2016年Hendrycks和Gimpel的论文《Gaussian Error Linear Units (GELUs)》。公式里的 $\Phi(x)$ 是标准正态分布的累积分布函数，取值在0到1之间， $x$ 越大越接近1，越小越接近0。BERT和GPT-2用的都是GELU。
+**GELU**（Gaussian Error Linear Unit）出自2016年Hendrycks和Gimpel的论文《Gaussian Error Linear Units (GELUs)》（arXiv:1606.08415）。公式里的 $\Phi(x)$ 是标准正态分布的累积分布函数，取值在0到1之间， $x$ 越大越接近1，越小越接近0。BERT和GPT-2用的都是GELU。
 
-**SiLU**（Sigmoid Linear Unit）的形式和GELU很像，只是把 $\Phi(x)$ 换成了Sigmoid，名字里的Sigmoid就是这么来的。2017年Google的Ramachandran等人在论文《Searching for Activation Functions》里，用自动搜索的办法，从一大堆候选函数里找到了它，起名叫Swish。所以SiLU和Swish说的是同一个函数，PyTorch里叫`F.silu`。
+**SiLU**（Sigmoid Linear Unit）的形式和GELU很像，只是把 $\Phi(x)$ 换成了Sigmoid，名字里的Sigmoid就是这么来的。2017年Google的Ramachandran等人在论文《Searching for Activation Functions》（arXiv:1710.05941）里，用自动搜索的办法，从一大堆候选函数里找到了它，起名叫Swish。所以SiLU和Swish说的是同一个函数，PyTorch里叫`F.silu`。
 
 被ReLU取代以后，Sigmoid并没有消失，只是换了个用法：它很少再直接当激活函数，更多是用来把任意一个数压到0到1之间，当成一个比例。SiLU里的 $\sigma(x)$ 就是这么用的，下一小节的门控，用的也是它。
 
@@ -102,7 +102,7 @@ $$
 
 ## 门控线性单元（GLU）
 
-**门控线性单元**（Gated Linear Unit，简称**GLU**）出自2016年Dauphin等人的论文《Language Modeling with Gated Convolutional Networks》。它的想法是，不是“先投影然后过一个激活函数”，而是**并行**做两次投影，一路当“门”，一路当“内容”，然后两路逐元素相乘：
+**门控线性单元**（Gated Linear Unit，简称**GLU**）出自2016年Dauphin等人的论文《Language Modeling with Gated Convolutional Networks》（arXiv:1612.08083）。它的想法是，不是“先投影然后过一个激活函数”，而是**并行**做两次投影，一路当“门”，一路当“内容”，然后两路逐元素相乘：
 
 $$
 \mathrm{GLU}(\mathbf{x}) = \sigma(\mathbf{x} \times \mathbf{W}) \odot (\mathbf{x} \times \mathbf{V})
@@ -120,7 +120,7 @@ $$
 
 ## SwiGLU
 
-2020年，Google的Shazeer写了一篇很短的论文《GLU Variants Improve Transformer》，把GLU用进了Transformer的FFN，并且试了好几种门：用ReLU的叫ReGLU，用GELU的叫GEGLU，用Swish（也就是SiLU）的叫**SwiGLU**。SwiGLU的公式如下：
+2020年，Google的Shazeer写了一篇很短的论文《GLU Variants Improve Transformer》（arXiv:2002.05202），把GLU用进了Transformer的FFN，并且试了好几种门：用ReLU的叫ReGLU，用GELU的叫GEGLU，用Swish（也就是SiLU）的叫**SwiGLU**。SwiGLU的公式如下：
 
 $$
 \mathrm{SwiGLU}(\mathbf{x}) = \mathrm{SiLU}(\mathbf{x} \times \mathbf{W}) \odot (\mathbf{x} \times \mathbf{V})
@@ -332,7 +332,7 @@ ID     [6403, 1980, 253, 655]
 
 30层走完之后，4个位置两两之间的余弦，也从第七章的0.992以上降到了0.493到0.787，各个位置不再被抹成一个样。出口处排第一的是逗号，按余弦它也排第一；而第六章那个`ppo`，是靠模长大才挤到第一的。这就是`ppo`消失的原因。
 
-第15层那个0.935也值得一提：最后一个词元把93.5%的注意力给了第一个词元`Once`，这并不是因为这个词有多重要。很多模型里，大量注意力都会落在序列开头，不管那里写的是什么。2023年的论文《Efficient Streaming Language Models with Attention Sinks》管它叫**注意力汇聚点**（Attention Sink）。一种常见的解释是，Softmax要求权重加起来等于1，一个头没什么可看的时候，也得把权重分出去，而第一个词元谁都看得见，就成了堆放权重的地方。
+第15层那个0.935也值得一提：最后一个词元把93.5%的注意力给了第一个词元`Once`，这并不是因为这个词有多重要。很多模型里，大量注意力都会落在序列开头，不管那里写的是什么。2023年的论文《Efficient Streaming Language Models with Attention Sinks》（arXiv:2309.17453）管它叫**注意力汇聚点**（Attention Sink）。一种常见的解释是，Softmax要求权重加起来等于1，一个头没什么可看的时候，也得把权重分出去，而第一个词元谁都看得见，就成了堆放权重的地方。
 
 另外，`model.py`打印的模长，第10层后144.387，第30层后635.043，出口处40.688，也和第五章量出来的真模型一致。要是把FFN拿掉，换回第七章的引擎，第30层后会涨到1271.2，大了一倍。
 
@@ -384,7 +384,7 @@ MoE的想法其实很简单：把原来那个大FFN，拆成许多个小FFN，�
 
 <img src="../images/ch08/moe.png" alt="MoE" style="zoom:50%;" />
 
-我们用 $E_i(\mathbf{x})$ 表示第 $i$ 个专家的计算，它就是一个前面讲的SwiGLU版FFN；用 $G(\mathbf{x})_i$ 表示它分到的权重，没被挑中的权重就是0。于是，整个MoE可以写成下面这两个式子，它们出自2024年Mistral AI的论文《Mixtral of Experts》：
+我们用 $E_i(\mathbf{x})$ 表示第 $i$ 个专家的计算，它就是一个前面讲的SwiGLU版FFN；用 $G(\mathbf{x})_i$ 表示它分到的权重，没被挑中的权重就是0。于是，整个MoE可以写成下面这两个式子，它们出自2024年Mistral AI的论文《Mixtral of Experts》（arXiv:2401.04088）：
 
 $$
 \begin{aligned}

@@ -131,10 +131,78 @@ def rule_no_em_dash(lines, masked, path):
     return issues
 
 
+# 规则5 论文引用：全书第一次出现写《标题》（arXiv:编号），之后只写标题
+TITLE_PAT = re.compile(r'《([A-Za-z][^》]*)》')
+ARXIV_TAIL_PAT = re.compile(r'\s*（arXiv:\d{4}\.\d{4,5}）')
+PAPER_WINDOW = 30  # 书名号前后多少个字符内出现「论文」，就当它是论文而不是书
+
+
+def _book_order(path):
+    """同目录下按文件名排好的书稿：_front、_preface、ch01、ch02……
+
+    只对 chapters/ 这种「一章一个文件」的目录有意义；目录里没有 chNN_*.md
+    时返回只含自己的列表，规则退化成单文件内检查。
+    """
+    d = os.path.dirname(os.path.abspath(path))
+    names = sorted(n for n in os.listdir(d) if n.endswith('.md'))
+    if not any(re.match(r'ch\d{2}_', n) for n in names):
+        return [os.path.abspath(path)]
+    return [os.path.join(d, n) for n in names
+            if (n.startswith('_') or re.match(r'ch\d{2}_', n))]
+
+
+def _citations(lines, masked):
+    """[(行号, 标题, 有没有编号, 是不是论文), ...]，按出现顺序。"""
+    out = []
+    for i, text in enumerate(masked, 1):
+        raw = lines[i - 1]
+        for m in TITLE_PAT.finditer(text):
+            tagged = bool(ARXIV_TAIL_PAT.match(raw, m.end()))
+            near = text[max(0, m.start() - PAPER_WINDOW):m.end() + PAPER_WINDOW]
+            out.append((i, m.group(1), tagged, tagged or '论文' in near))
+    return out
+
+
+def rule_paper_citation(lines, masked, path):
+    """论文在全书第一次出现时写《标题》（arXiv:编号），后面各章只写标题。
+
+    「全书第一次」按文件名顺序算，所以要把整本书一起扫，单查一章也会先读
+    它前面的各章。书名号里是英文、前后 30 个字符内有「论文」或带了编号的，
+    才当成论文；像《Build a Large Language Model (From Scratch)》这样的书不管。
+    """
+    seen = set()
+    me = os.path.abspath(path)
+    for p in _book_order(path):
+        if p == me:
+            break
+        if excluded(p):
+            continue
+        prev = read_lines(p)
+        for _i, title, _tagged, _paper in _citations(prev, mask_lines(prev)):
+            seen.add(title)
+
+    issues = []
+    for i, title, tagged, paper in _citations(lines, masked):
+        if title in seen:
+            if tagged:
+                issues.append((i, "论文引用",
+                               f"《{title}》前面已经出现过，arXiv编号只在全书第一次出现时写",
+                               lines[i - 1].rstrip()))
+            continue
+        if paper:
+            seen.add(title)
+            if not tagged:
+                issues.append((i, "论文引用",
+                               f"《{title}》在全书第一次出现，要写成《标题》（arXiv:编号）",
+                               lines[i - 1].rstrip()))
+    return issues
+
+
 RULES = [
     rule_notation,
     rule_no_em_dash,
     rule_math_vs_code,
+    rule_paper_citation,
     # rule_md_toycode is appended below, after the toy-code helpers it reuses
 ]
 

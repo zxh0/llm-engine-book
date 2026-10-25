@@ -188,7 +188,7 @@ $$
 
 可以看到，SmolLM2的层数是30，跟我们从Safetensors文件里读到的信息是一样的。而它的注意力头数是9，此外还有一个奇怪的KV头，数量是3，这是因为SmolLM2使用了一种叫做**分组查询注意力**（Grouped-Query Attention，简称**GQA**）的优化。为了便于区分，我们把注意力头叫做Q头。
 
-等会我们会看到，注意力的计算量和内存开销都不小，尤其是K和V。2017年的原始做法里，每个头都有自己的一组K和V，也就是Q头和KV头一样多，叫做**多头注意力**（Multi-Head Attention，简称**MHA**）。2019年有人提出了一个激进的办法：所有头共用同一组K和V，叫做**多查询注意力**（Multi-Query Attention，简称**MQA**）。MQA省是省了，但通常认为效果会打折扣。2023年提出的GQA取了个折中：把Q头分成几组，每组共用一组K和V。三种做法放在一起，按SmolLM2的9个头来算，是这样的：
+等会我们会看到，注意力的计算量和内存开销都不小，尤其是K和V。2017年的原始做法里，每个头都有自己的一组K和V，也就是Q头和KV头一样多，叫做**多头注意力**（Multi-Head Attention，简称**MHA**）。2019年，Shazeer在论文《Fast Transformer Decoding: One Write-Head is All You Need》（arXiv:1911.02150）里提出了一个激进的办法：所有头共用同一组K和V，叫做**多查询注意力**（Multi-Query Attention，简称**MQA**）。MQA省是省了，但通常认为效果会打折扣。2023年的论文《GQA: Training Generalized Multi-Query Transformer Models from Multi-Head Checkpoints》（arXiv:2305.13245）提出的GQA取了个折中：把Q头分成几组，每组共用一组K和V。三种做法放在一起，按SmolLM2的9个头来算，是这样的：
 
 | 方案 | Q头 | KV头 | 说明 |
 | ---- | ---: | ---: | ---- |

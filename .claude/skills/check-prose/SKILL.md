@@ -1,7 +1,7 @@
 ---
 name: check-prose
 description: This skill should be used when the user asks to "check prose", "check the text", "检查正文", "检查行文", "审查文字", "检查玩具代码", or wants to audit the body text anywhere in this book.
-version: 1.1.0
+version: 1.2.0
 ---
 
 # Check Prose in the Manuscript
@@ -249,6 +249,39 @@ $...$」的正则会把这 13 处全改错，而且改完读起来还挺顺，�
 3. 转完不必手工补空格：跑一遍 `check-formulas` 的 `fix.py`，它会把
    `参数$w$代表` 自动补成 `参数 $w$ 代表`。
 4. 转完核对**章节代码块与 `toy_*.py` 仍然逐行一致**，确认没有误伤代码块。
+
+### 论文引用（paper-citation）
+
+论文在**全书第一次出现**时写成《标题》（arXiv:编号），后面各章再提到同一篇，只写《标题》，不再重复编号。
+标题用arXiv上的原文，大小写也照抄；编号要先核对过（arXiv的接口 `export.arxiv.org/api/query?id_list=...` 一次能查一批）。
+只说了“某某的论文”、没写标题的，也要补上标题。
+
+**违规示例：**
+```
+（第六章）可以从《Attention Is All You Need》（arXiv:1706.03762）这篇论文开始看起。
+（第三章）是2015年Sennrich等人那篇机器翻译论文带起来的，
+```
+
+**正确示例：**
+```
+（第一章，全书第一次）这个架构出自2017年的经典论文《Attention Is All You Need》（arXiv:1706.03762）。
+（第六章）可以从《Attention Is All You Need》这篇论文开始看起。
+（第三章）是2015年Sennrich等人的机器翻译论文《Neural Machine Translation of Rare Words with Subword Units》（arXiv:1508.07909）带起来的，
+```
+
+检测方法：`scripts/check.py` 的 `rule_paper_citation`。“全书第一次”按 `chapters/` 里的文件名顺序算（`_front`、`_preface`、`ch01`……），
+所以只查一章时，脚本也会先读它前面的各章。书名号里是英文、并且前后30个字符内有“论文”二字或者已经带了编号的，才当作论文；
+《Build a Large Language Model (From Scratch)》这样的书不受这条约束。报两种问题：
+
+- 全书第一次出现却没带编号
+- 前面已经出现过，这里又带了编号
+
+“没写标题”的那一类脚本查不出来，靠人工：搜一下 `年.*论文`、`提出`，看看有没有只写了作者和年份的。
+没有arXiv编号的老文献（1958年的感知机、1994年Gage的BPE）只写年份和人名，不强求标题。
+
+是否可自动修复：否，只报告。编号要查、要核对，不能机械补。
+
+---
 
 ### 玩具代码规范（toy-code）
 

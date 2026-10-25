@@ -84,7 +84,7 @@
 
 ## 注意力机制（第六章）
 
-我们知道，目前的LLM大多采用Decoder-only的Transformer架构，SmolLM2也不例外。这个架构出自2017年的经典论文《Attention Is All You Need》。这篇论文非常重要，是整个Transformer架构，乃至整个LLM的开山之作。如果你还没读过它，一定要读三遍以上。
+我们知道，目前的LLM大多采用Decoder-only的Transformer架构，SmolLM2也不例外。这个架构出自2017年的经典论文《Attention Is All You Need》（arXiv:1706.03762）。这篇论文非常重要，是整个Transformer架构，乃至整个LLM的开山之作。如果你还没读过它，一定要读三遍以上。
 
 从这篇论文的标题你就可以知道，**注意力**机制有多么重要。可以这么说，注意力机制就是整个LLM的核心。而它在我们的数据流向图中也的确处于核心位置，如下图所示。我们会在第六章详细讨论注意力机制的基本原理。
 
