@@ -6,7 +6,7 @@
 
 我们已经实现了六个小模块，并且写了一个只能胡言乱语，或者不停重复最后一个词的LLM推理引擎。我已经在路线图里把这六个模块涂成了绿色，如下所示：
 
-<img src="../images/ch05/progress.png" alt="Progress" style="zoom:50%;" />
+<img src="../images/ch05/progress.png" alt="Progress" width="1314" />
 
 按照从左到右的顺序，也就是数据流动的方向，我们该实现归一化模块了。在采用Transformer架构的LLM里，有多处用到了归一化，我已经涂成了黄色，如上图所示。以SmolLM2为例，一共是30层，每层两个，再加上出口处的一个，所以实际上一共有61个归一化模块。最初的Transformer用的是LayerNorm，而SmolLM2等现代LLM大多采用它的简化版RMSNorm，所以我直接把RMSNorm写进了路线图里。
 
@@ -62,7 +62,7 @@ BatchNorm的办法是把训练时的统计量存下来，推理时直接用，�
 
 第一章介绍归一化的时候提过一句：传统Transformer架构里，层归一化放在注意力机制和FFN的后面，后来的架构把它前移了，于是有了post-norm和pre-norm之分。这一节就把这件事说清楚。我们先把第一章那张图再贴一次，图上三个红色箭头指的就是SmolLM2里归一化的位置：
 
-<img src="../images/ch01/norm.png" alt="Norm" style="zoom:50%;" />
+<img src="../images/ch01/norm.png" alt="Norm" width="540" />
 
 要说清“前”和“后”，得先说清楚相对于什么。在上面的图里，注意力机制和FFN这两个框里都写着“+Residual”，这就是第九章要仔细讲的**残差连接**（Residual Connection）。这里先只说它最基本的样子：一个子层（注意力机制或者FFN）算完之后，并不是直接把结果往下传，而是把结果**加回到它自己的输入上**，再往下传。我们把子层记作 $f$ ，输入记作 $\mathbf{x}$ ，那么一个子层走完，往下传的是 $\mathbf{x} + f(\mathbf{x})$ ，而不是 $f(\mathbf{x})$ 。
 
@@ -84,7 +84,7 @@ $$
 
 为了便于观察，我把一个Decoder块内部的注意力和FFN，以及两个归一化都画出来了。post-norm如下图所示：
 
-<img src="../images/ch05/post_norm.png" alt="PostNorm" style="zoom:50%;" />
+<img src="../images/ch05/post_norm.png" alt="PostNorm" width="563" />
 
 在上图里，灰色箭头和加号表示残差连接，我们到第九章再展开讨论。但对照前面那个比方，灰色箭头其实才是主干，它绕开子层，原样往下传；穿过注意力机制和FFN的那条黑线才是旁路。这里我们只关注归一化和加号谁先谁后即可，后面还会有一幅主干和旁路更分明的图。
 
@@ -100,7 +100,7 @@ $$
 
 归一化挪到了旁路里，只作用在送进子层的那份数据上，主干上只剩一个加法。因为归一化落在子层前面，这种放法叫做**pre-norm**。GPT-2在2019年就是这么改的，把层归一化挪到每个子层的入口，Llama系列沿用了这个做法，SmolLM2也是。pre-norm如下图所示，你可以和前面的图对比：
 
-<img src="../images/ch05/pre_norm.png" alt="PreNorm" style="zoom:50%;" />
+<img src="../images/ch05/pre_norm.png" alt="PreNorm" width="560" />
 
 回头再看这一节开头那张图，两个红色箭头分别指着注意力机制和FFN的**前面**，画的正是pre-norm。
 
@@ -116,7 +116,7 @@ $$
 
 前面两幅图的画法，是为了尽量和路线图保持一致。为了把主干和旁路区分得更清楚，我又专门画了一幅对比图，上面是post-norm，下面是pre-norm，中间那条直线就是主干。可以看到，post-norm的两个归一化都卡在主干上，而pre-norm的主干上只剩两个加号：
 
-<img src="../images/ch05/norm2.png" alt="NormComp" style="zoom:50%;" />
+<img src="../images/ch05/norm2.png" alt="NormComp" width="675" />
 
 至于为什么这个区别如此要命，完整的答案还是在训练里，关键词是梯度和学习率预热，感兴趣的读者可以去查。按我们的约定，不深入探讨训练，所以就此打住，只取两个对我们有用的结论。
 

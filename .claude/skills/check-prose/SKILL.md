@@ -1,7 +1,7 @@
 ---
 name: check-prose
 description: This skill should be used when the user asks to "check prose", "check the text", "检查正文", "检查行文", "审查文字", "检查玩具代码", or wants to audit the body text anywhere in this book.
-version: 1.2.0
+version: 1.3.0
 ---
 
 # Check Prose in the Manuscript
@@ -280,6 +280,36 @@ $...$」的正则会把这 13 处全改错，而且改完读起来还挺顺，�
 没有arXiv编号的老文献（1958年的感知机、1994年Gage的BPE）只写年份和人名，不强求标题。
 
 是否可自动修复：否，只报告。编号要查、要核对，不能机械补。
+
+---
+
+### 图片宽度（img-width）
+
+正文里的插图用 `<img src="..." alt="..." width="N" />`，`N` 是这张PNG像素宽度的一半，不用 `style="zoom:50%;"`。
+
+为什么是一半：本书的插图都是两倍像素。Mac的Retina屏截图按物理像素保存，`export_drawio.py` 也按 `SCALE = 2` 导出。
+按像素宽度原样显示，图会大一倍；显示成一半宽，在高分屏上正好清楚。
+
+为什么不用 `zoom`：`zoom` 不是标准CSS，只有Typora等少数地方认；GitHub渲染Markdown时会把 `style` 属性整个删掉。
+`width` 是标准HTML属性，GitHub、Typora、VitePress、浏览器都认。也不要写 `width="50%"`，百分比是相对正文栏宽的，不是相对图片本身。
+
+**违规示例：**
+```
+<img src="../images/ch08/af.png" alt="AF" style="zoom:50%;" />
+<img src="../images/ch08/af.png" alt="AF" width="800" />      （af.png 是 1280 像素宽）
+```
+
+**正确示例：**
+```
+<img src="../images/ch08/af.png" alt="AF" width="640" />
+```
+
+检测方法：`scripts/check.py` 的 `rule_img_width`。逐个找代码块外的 `<img>`，从PNG文件头读出像素宽度，
+报两种问题：用了 `style`；`width` 没写或者不等于像素宽度的一半（图重新导出后尺寸变了，就会报这一条）。
+图片文件不存在时（`images/` 不进 git，换一台机器可能没有），只查 `style`，不查宽度。
+
+是否可自动修复：**是。** `scripts/fix.py` 的 `fix_img_width` 去掉 `style`，把 `width` 设成像素宽度的一半。
+重新导出图片以后跑一次 `python3 scripts/fix.py chapters/` 即可。
 
 ---
 

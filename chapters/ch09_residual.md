@@ -4,7 +4,7 @@
 
 在第八章，我们填上了Decoder块里的最后一个空位FFN。从那一章起，中间那30层全是真的计算，引擎第一次说出了人话，而且和第一章用`transformers`跑出来的那句话一字不差。到目前为止，我们已经实现了14个小模块中的12个，如下图所示：
 
-<img src="../images/ch09/progress.png" alt="Progress" style="zoom:50%;" />
+<img src="../images/ch09/progress.png" alt="Progress" width="1315" />
 
 这一章没有新模块。我把注意力和FFN这两个模块涂成了蓝色，因为这一章要看的，是它们名字里那个“+Residual”，也就是**残差连接**（Residual Connection）。第一章说过，残差连接不太好画在数据流向图里，所以只以文字形式写在了这两个模块里。其实我们从第五章起就一直在用它，`block()`方法里那两个加号就是，只是一直没有细说。
 
@@ -24,7 +24,7 @@ $$
 
 第五章还打了一个比方：数据有两条路可以走。一条是**主干**，什么都不干，原样往下传；另一条是**旁路**，先归一化，再拐进子层里算一圈，最后汇回主干。下面这幅图是第五章画过的，下半部分就是SmolLM2用的pre-norm，中间那条直线就是主干：
 
-<img src="../images/ch05/norm2.png" alt="NormComp" style="zoom:50%;" />
+<img src="../images/ch05/norm2.png" alt="NormComp" width="675" />
 
 在代码里，这件事就是`block()`方法里那两行。从第五章起，它们一个字都没变过：
 
@@ -53,7 +53,7 @@ $$
 
 也就是说，主干上任意一处的向量，都等于最开始的词嵌入 $\mathbf{h}_1$ ，加上前面每一个子层各自的那份贡献。以3个子层为例，展开之后如下图所示：
 
-<img src="../images/ch09/sum.png" alt="Sum" style="zoom:50%;" />
+<img src="../images/ch09/sum.png" alt="Sum" width="676" />
 
 这条从词嵌入一直通到出口的主干，有一个通俗的叫法：**残差流**（Residual Stream）。它的形状始终是`(T, 576)`，从第一层到最后一层，不放大、不缩小、不改维度。每一个子层都从这条流里读取前面所有子层写进去的东西，再往里加上自己的那一份。
 
@@ -71,11 +71,11 @@ $$
 
 没有残差连接的网络，每一层的输出就直接是下一层的输入，可以写成 $\mathbf{h}_{l+1} = f_l(\mathbf{h}_l)$ 。以3层为例，画出来是下面这样，数据只有一条路可走：
 
-<img src="../images/ch09/nores.png" alt="NoRes" style="zoom:50%;" />
+<img src="../images/ch09/nores.png" alt="NoRes" width="557" />
 
 加上残差连接之后，每一层都多了一条绕过去的路，也就是上面那条红色的线：
 
-<img src="../images/ch09/res.png" alt="Res" style="zoom:50%;" />
+<img src="../images/ch09/res.png" alt="Res" width="559" />
 
 注意这两幅图用的是 $\mathbf{X}_l$ 和 $F_l$ ，和前面的 $\mathbf{h}_l$ 、 $f_l$ 是一回事，只是沿用了后面要讲的HC论文的写法。
 
@@ -215,7 +215,7 @@ $$
 
 下面是 $n=3$ 时，3层HC的完整计算过程，每个矩阵的形状都标在了图上：
 
-<img src="../images/ch09/hc.png" alt="HC" style="zoom:50%;" />
+<img src="../images/ch09/hc.png" alt="HC" width="627" />
 
 如果取 $n=1$ ，并且让 $\mathbf{A}_l$ 、 $\mathbf{B}_l$ 、 $\mathbf{C}_l$ 都等于1，公式就变成了 $\mathbf{X}_{l+1} = \mathbf{X}_l + F_l(\mathbf{X}_l)$ ，正好是普通的残差连接。所以HC可以看作残差连接的推广：普通残差连接里那些固定的“1”，在HC里都变成了可以训练的矩阵。HC论文里还有一种动态的版本，这三个矩阵不是训练完就固定的，而是根据输入当场算出来的，这里就不展开了。
 
@@ -287,7 +287,7 @@ $$
 
 其中 $\alpha_{i \to l}$ 表示第 $l$ 层给前面第 $i$ 份贡献的权重，这些权重加起来等于1。注意每一层都有自己的一套权重，以3层为例，第1层要给2份贡献分配权重，第2层3份，第3层4份，如下图所示：
 
-<img src="../images/ch09/attnres.png" alt="AttnRes" style="zoom:50%;" />
+<img src="../images/ch09/attnres.png" alt="AttnRes" width="673" />
 
 那这些权重从哪里来呢？答案就藏在名字里：用注意力算出来。论文给每一层准备了一个可以训练的向量 $\mathbf{w}_l$ ，当作Q；前面每一份贡献，既当K，也当V。第 $l$ 层的权重就是：
 
@@ -299,13 +299,13 @@ $$
 
 把所有层放在一起，写成矩阵，就是下面这张图。把它和第六章那张注意力的整体图放在一起看，你会发现几乎一模一样：
 
-<img src="../images/ch09/attnres_qkv.png" alt="AttnResQKV" style="zoom:50%;" />
+<img src="../images/ch09/attnres_qkv.png" alt="AttnResQKV" width="497" />
 
 图里权重矩阵右上角的灰色部分不需要算，因为第 $l$ 层只能看到它前面的层，看不到后面的层，这和第六章的因果掩码是同一个道理。不同的是，第六章的注意力是在**各个位置**之间做加权求和，词元看词元；AttnRes是在**各个层**之间做加权求和，层看层。论文把这个版本叫做Full AttnRes。
 
 站在推理的角度，Full AttnRes有一笔开销：算到第 $l$ 层的时候，前面每一层的输出都还要用，所以都得留着。层数是 $L$ 的话，每个词元要多存 $L$ 个向量，计算量也随 $L$ 的平方增长。好在层数通常也就几十，这笔开销还能接受。论文还给了一个更省的版本，叫Block AttnRes：把层分成几组，组内照常用普通的残差连接，组和组之间才用AttnRes。这和第六章GQA把Q头分组共用K和V，是同一种思路。以4层分2组为例，如下图所示：
 
-<img src="../images/ch09/attnres_block.png" alt="AttnResBlock" style="zoom:50%;" />
+<img src="../images/ch09/attnres_block.png" alt="AttnResBlock" width="875" />
 
 分成 $N$ 组之后，要多存的向量就从 $L$ 个变成了 $N$ 个。据Kimi K3的技术报告，K3用的就是AttnRes。
 

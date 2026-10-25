@@ -26,7 +26,8 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from lintscope import disabled_rules, keep, excluded
 
-from prose import iter_targets, map_formulas, read_lines
+from prose import (img_fixed_tag, img_want_width, iter_img_tags,
+                   iter_targets, map_formulas, read_lines)
 
 # --------------------------------------------------------------------------
 # Fixers
@@ -52,8 +53,26 @@ def fix_notation(lines, path):
 
 fix_notation.rule = "符号记法"
 
+
+# 规则6 图片宽度：去掉 style，width 设成图片像素宽度的一半。
+# 图片文件不在时，只去掉 style，不猜宽度。
+def fix_img_width(lines, path):
+    """<img ... style="zoom:50%;"> → <img ... width="像素宽度的一半">。"""
+    out = list(lines)
+    for i, m in reversed(list(iter_img_tags(lines))):
+        tag = m.group(0)
+        new = img_fixed_tag(tag, img_want_width(tag, path))
+        if new != tag:
+            line = out[i - 1]
+            out[i - 1] = line[:m.start()] + new + line[m.end():]
+    return out
+
+
+fix_img_width.rule = "图片宽度"
+
 FIXERS = [
     fix_notation,
+    fix_img_width,
 ]
 
 

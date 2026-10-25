@@ -35,7 +35,7 @@ CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 ROOT = Path(__file__).resolve().parent  # 本书根目录
 SHRINK = ROOT / ".claude" / "skills" / "shrink-images" / "scripts" / "shrink.py"
 
-SCALE = 2    # 正文用 zoom:50%，两倍图在高分屏上正好清楚
+SCALE = 2    # 两倍图，正文按一半显示（<img width="像素宽度的一半">），在高分屏上正好清楚
 BORDER = 10  # 四周留白，单位是 draw.io 里的单位，导出后乘以 SCALE
 
 # 网格，单位是导出后的像素。draw.io 的格子是10，乘以 SCALE 就是20；每4格一条粗线。
@@ -186,6 +186,15 @@ def main():
 
     if exported and not args.no_shrink:
         shrink(exported)
+
+    # 正文里的 <img> 要写 width="像素宽度的一半"。图的尺寸变了的话，
+    # 跑一下 check-prose 的 fix.py，它会把正文里的 width 一起改过来。
+    if exported:
+        print("\n正文里这样引用（width 是像素宽度的一半）：")
+        for out in exported:
+            w, _h = png_size(out)
+            rel = out.relative_to(ROOT)
+            print(f'  <img src="../{rel}" alt="{out.stem}" width="{round(w / 2)}" />')
 
     # 有图没页：多半是页名和文件名对不上，或者这张图画在别处。只导几页时不必查。
     if args.pages:

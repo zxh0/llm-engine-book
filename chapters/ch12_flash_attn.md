@@ -4,7 +4,7 @@
 
 在第十一章，我们给引擎加上了KV Cache。每一圈不再把整个序列从头重算，而是只算刚生成的那一个词元，历史上的K和V从缓存里取。推理因此分成了prefill和decode两个阶段，生成200个词元快了3.2倍，而且一个ID都没变。和上一章一样，这一章也不在总览图上增加任何方框，要改的还是图上那个粉色的注意力机制，如下图所示：
 
-<img src="../images/ch12/progress.png" alt="Progress" style="zoom:50%;" />
+<img src="../images/ch12/progress.png" alt="Progress" width="1318" />
 
 这是“跑快”这一部分的最后一章。它要对付的，是第六章就埋下的那句话：注意力分数是一张 $T \times T$ 的表，序列长度翻一倍，这张表就要变成原来的四倍。第十一章的decode阶段，这张表只剩一行，不成问题；可prefill阶段，它还是一张完整的方表。提示词一长，光是把这张表存下来，内存就吃不消了。
 
@@ -52,7 +52,7 @@ GPU上的存储分好几层，我们只看其中两层。一层是**HBM**（High
 4. 对缩放之后的 $\mathbf{Q}\mathbf{K}^\top$ 逐行做Softmax。
 5. 用它和V做矩阵乘法，得到每个头的输出A，也就是下图紫色的方块。
 
-<img src="../images/ch12/attn.png" alt="Attn" style="zoom:50%;" />
+<img src="../images/ch12/attn.png" alt="Attn" width="615" />
 
 为了画得简单，这一章的图都没有画因果掩码，它不影响我们要讨论的问题，最后再说它。
 
@@ -91,7 +91,7 @@ $$
 
 我们先把Softmax放到一边，看看分块计算本身是怎么回事。还是那个 $n=8$ 、 $d=3$ 的例子，我们把Q、K、V和输出A都沿着行切成两块，那张 $\mathbf{Q}\mathbf{K}^\top$ 的表就相应地被切成了四块，如下图所示：
 
-<img src="../images/ch12/attn2.png" alt="Attn2" style="zoom:50%;" />
+<img src="../images/ch12/attn2.png" alt="Attn2" width="609" />
 
 先不管缩放和Softmax，只看 $(\mathbf{Q}\mathbf{K}^\top)\mathbf{V}$ 。根据矩阵乘法的规则，分块计算的结果和直接计算的结果完全一样：
 
@@ -106,19 +106,19 @@ $$
 
 第一步，把 $\mathbf{K}_1$ 、 $\mathbf{V}_1$ 和 $\mathbf{Q}_1$ 搬进SRAM，算出这一小块的注意力，暂时记作 $\mathbf{A}_1$ 。它还不是最终结果，所以涂成了黄色：
 
-<img src="../images/ch12/fa1.png" alt="FA1" style="zoom:50%;" />
+<img src="../images/ch12/fa1.png" alt="FA1" width="611" />
 
 第二步， $\mathbf{K}_1$ 和 $\mathbf{V}_1$ 不动，把 $\mathbf{Q}_1$ 换成 $\mathbf{Q}_2$ ，再算一小块，暂时记作 $\mathbf{A}_2$ ，同样还不是最终结果：
 
-<img src="../images/ch12/fa2.png" alt="FA2" style="zoom:50%;" />
+<img src="../images/ch12/fa2.png" alt="FA2" width="612" />
 
 第三步， $\mathbf{K}_1$ 和 $\mathbf{V}_1$ 已经用完了，换成 $\mathbf{K}_2$ 和 $\mathbf{V}_2$ ，再把 $\mathbf{Q}_1$ 拿回来，算出另一小块。把它和第一步算出的那一块合起来，就是最终的 $\mathbf{A}_1$ ，涂成了紫色。怎么个合法，就是下一小节要讲的在线Softmax：
 
-<img src="../images/ch12/fa3.png" alt="FA3" style="zoom:50%;" />
+<img src="../images/ch12/fa3.png" alt="FA3" width="606" />
 
 第四步，把 $\mathbf{Q}_1$ 换成 $\mathbf{Q}_2$ ，再算一小块，和第二步的那一块合起来，就是最终的 $\mathbf{A}_2$ ：
 
-<img src="../images/ch12/fa4.png" alt="FA4" style="zoom:50%;" />
+<img src="../images/ch12/fa4.png" alt="FA4" width="624" />
 
 四步走完，那张 $\mathbf{Q}\mathbf{K}^\top$ 的大表从头到尾都没有完整地出现过，每次只有其中一小块在SRAM里，用完就扔。这里为了好画，只切成了两块，切成更多块，道理也是一样的。如果你去读FlashAttention的论文，会看到一段两层循环的伪代码，它基本上就对应这四步。
 
@@ -128,7 +128,7 @@ $$
 
 现在来解决Softmax的问题。Softmax是按行算的，所以我们只盯着 $\mathbf{Q}\mathbf{K}^\top$ 的第一行看，记作 $\mathbf{x}$ ，并且只看V的第一列，记作 $\mathbf{v}$ 。为了不分心，我们假设 $\mathbf{x}$ 已经除过 $\sqrt{d}$ 了。这样，输出A的第一行第一列那个数 $a$ ，就是 $\mathbf{x}$ 过完Softmax之后，和 $\mathbf{v}$ 的点积，如下图所示：
 
-<img src="../images/ch12/a2.png" alt="A2" style="zoom:50%;" />
+<img src="../images/ch12/a2.png" alt="A2" width="448" />
 
 把Safe Softmax代进去，展开写，就是：
 

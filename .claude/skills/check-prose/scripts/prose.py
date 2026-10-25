@@ -260,3 +260,65 @@ def logical_lines(lines):
 def read_lines(path):
     with open(path, encoding='utf-8') as f:
         return f.readlines()
+
+
+# --------------------------------------------------------------------------
+# <img> tags: width = half the PNG's pixel width
+# --------------------------------------------------------------------------
+# Illustrations are exported (or screenshotted on a Retina Mac) at 2x, so they
+# must be shown at half their pixel width. `style="zoom:50%"` only works in
+# Typora: GitHub strips `style`, and `zoom` is non-standard CSS. The portable
+# form is the HTML `width` attribute, which every renderer keeps.
+
+IMG_TAG_PAT = re.compile(r'<img\b[^>]*>')
+IMG_SRC_PAT = re.compile(r'\bsrc="([^"]+)"')
+IMG_WIDTH_PAT = re.compile(r'\swidth="(\d+)"')
+IMG_STYLE_PAT = re.compile(r'\sstyle="[^"]*"')
+
+
+def png_width(path):
+    """Pixel width from the PNG header, or None if missing / not a PNG.
+
+    Reads the IHDR chunk directly so the check needs no Pillow.
+    """
+    try:
+        with open(path, 'rb') as f:
+            head = f.read(24)
+    except OSError:
+        return None
+    if len(head) < 24 or head[:8] != b'\x89PNG\r\n\x1a\n':
+        return None
+    return int.from_bytes(head[16:20], 'big')
+
+
+def iter_img_tags(lines):
+    """Yield (lineno, match) for each <img> tag outside fenced code blocks."""
+    in_code = False
+    for i, line in enumerate(lines, 1):
+        if FENCE_PAT.match(line):
+            in_code = not in_code
+            continue
+        if in_code:
+            continue
+        for m in IMG_TAG_PAT.finditer(line):
+            yield i, m
+
+
+def img_want_width(tag, md_path):
+    """Half the pixel width of the PNG this tag points at, or None if unknown."""
+    m = IMG_SRC_PAT.search(tag)
+    if not m or '://' in m.group(1):
+        return None
+    w = png_width(os.path.join(os.path.dirname(os.path.abspath(md_path)), m.group(1)))
+    return None if w is None else round(w / 2)
+
+
+def img_fixed_tag(tag, want):
+    """The tag with any style dropped and width set to `want` (None = leave width)."""
+    new = IMG_STYLE_PAT.sub('', tag)
+    if want is not None:
+        if IMG_WIDTH_PAT.search(new):
+            new = IMG_WIDTH_PAT.sub(f' width="{want}"', new)
+        else:
+            new = re.sub(r'\s*/?>$', f' width="{want}" />', new)
+    return new

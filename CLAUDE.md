@@ -22,8 +22,8 @@ Three standing conventions from the preface that the manuscript must honour:
 | `chapters/todo.md` | scratch list of open decisions; **not part of the book**, to be deleted. `merge.py` skips it |
 | `chapters/_preface.md` | 前言 — motivation, target reader, reading conventions, tech choices, TOC. Also absorbed the old `ch00.md` (准备). Sorts before `ch01` thanks to the `_` prefix. |
 | `chapters/chNN_slug.md` | manuscript source, one file per chapter, `chNN` matches 第N章. Fourteen chapters, `ch01`–`ch14`. |
-| `images/chNN/` | exported PNGs, referenced from chapters as `../images/chNN/...` inside `<img ... style="zoom:50%;">` tags |
-| `draw/chNN.drawio` | draw.io sources for those PNGs (ch01–ch06 exist so far) |
+| `images/chNN/` | exported PNGs, referenced from chapters as `../images/chNN/...` inside `<img ... width="N" />` tags, where N is half the PNG's pixel width (every image is 2x: Retina screenshots, and `export_drawio.py` exports at `SCALE = 2`). Never `style="zoom:50%"`: GitHub strips `style` and `zoom` is non-standard CSS. `check-prose` checks the width (rule `图片宽度`) and its `fix.py` rewrites it after an image is re-exported |
+| `draw/chNN.drawio` | draw.io sources for those PNGs. A plotted figure (a function curve, not a diagram) has no drawio page: its source is a `plot_*.py` in that chapter's code directory, e.g. `code/book/ch08/plot_af.py` → `images/ch08/af.png`. matplotlib is not a project dependency; the script declares it with PEP 723, so run it as `uv run book/ch08/plot_af.py` (no `python`) |
 | `Book.md` | **generated** single-file manuscript, gitignored, never edit by hand — see `merge.py` below |
 | `merge.py` | the generator: `python3 merge.py` (regenerate), `--check` (exit 1 if `Book.md` is out of sync with `chapters/`, version stamp ignored), `-o` (write elsewhere) |
 | `code/` | one uv project holding two code trees — see `code/CLAUDE.md` |
@@ -111,6 +111,7 @@ Downloads (weights, `uv sync`) must bypass Claude Code's proxy — prefix with
   - *Quantities* take a comma every three digits from four digits up: 134,515,008 params, 269,060,552 bytes, 30,536 bytes, 35,136 params.
   - One exception: a quantity being reconciled against a spec value in the same passage follows the spec value and stays bare. ch03's 48900 merge rules sits inside `49152 - 17 - 235 = 48900`, so both stay bare rather than mixing `49,152` with `48,900`.
   - Numbers inside code blocks, JSON excerpts and quoted script output are verbatim and never reformatted.
+- **Paper citations**: the first time a paper appears in the book (file-name order: `_preface`, `ch01`, …) it is written 《Title》（arXiv:NNNN.NNNNN）, with the title exactly as on arXiv; every later mention, in any chapter, is just 《Title》. A paper mentioned only by author and year gets its title added. `check-prose` enforces both halves (rule `论文引用`).
 - Bold marks a term's first formal definition, given as **中文**（English）: **词元**（Token）, **前馈网络**（Feed-Forward Network，简称FFN）. Sampling parameters keep their conventional lowercase-hyphenated spelling in prose (`top-k`, `top-p`) and snake_case in code (`top_k`, `top_p`).
 - Chapter titles are 中文（English）where a standard English term exists — 分词（Tokenization）, 归一化（RMSNorm） — and plain English only where no settled Chinese term exists (KV Cache, FlashAttention).
 - Chapters end with a `## 本章小结` section (小结 = summary; 小节 would mean subsection — the whole book was corrected from that typo, so do not reintroduce it).

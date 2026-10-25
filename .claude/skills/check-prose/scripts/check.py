@@ -27,8 +27,9 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from lintscope import disabled_rules, keep, excluded
 
-from prose import (INLINE_CODE_PAT, block_is_exempt, has_exempt_marker,
-                   iter_code_blocks, iter_formulas, iter_targets,
+from prose import (IMG_STYLE_PAT, IMG_WIDTH_PAT, INLINE_CODE_PAT,
+                   block_is_exempt, has_exempt_marker, img_want_width,
+                   iter_code_blocks, iter_formulas, iter_img_tags, iter_targets,
                    is_runnable_example, is_toy, logical_lines, mask_lines,
                    read_lines)
 
@@ -198,11 +199,37 @@ def rule_paper_citation(lines, masked, path):
     return issues
 
 
+
+# 规则6 图片宽度：用 width 属性，值是图片像素宽度的一半
+def rule_img_width(lines, masked, path):
+    """<img> 用 width="像素宽度的一半"，不用 style="zoom:50%"。
+
+    插图都是两倍像素（Retina 截图、export_drawio.py 的 SCALE = 2），要按一半显示。
+    `zoom` 只有 Typora 认，GitHub 会把整个 style 属性删掉；width 是标准 HTML 属性，
+    到处都认。图片文件不在（images/ 不进 git）时只查 style，不查宽度。
+    """
+    issues = []
+    for i, m in iter_img_tags(lines):
+        tag = m.group(0)
+        want = img_want_width(tag, path)
+        have = IMG_WIDTH_PAT.search(tag)
+        if IMG_STYLE_PAT.search(tag):
+            hint = f'width="{want}"' if want else 'width="像素宽度的一半"'
+            issues.append((i, "图片宽度", f"不要用 style 缩放（GitHub 会删掉它），改成 {hint}",
+                           lines[i - 1].rstrip()))
+        elif want is not None and (not have or int(have.group(1)) != want):
+            now = f'现在是 {have.group(1)}' if have else '现在没写'
+            issues.append((i, "图片宽度", f'width 应为图片像素宽度的一半 {want}（{now}）',
+                           lines[i - 1].rstrip()))
+    return issues
+
+
 RULES = [
     rule_notation,
     rule_no_em_dash,
     rule_math_vs_code,
     rule_paper_citation,
+    rule_img_width,
     # rule_md_toycode is appended below, after the toy-code helpers it reuses
 ]
 

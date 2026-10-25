@@ -8,7 +8,7 @@
 
 为了便于参考，我们把前一章的数据流向图重新贴过来，如下所示。注意，这一章你不必纠结这些绿色小模块的具体细节。我们只要搞清楚这些小模块对应的参数量大约是多少，大致在数据文件中的什么位置，就可以了。从下一章开始，我们会逐个详细了解这些模块。
 
-<img src="../images/ch01/all.png" alt="All" style="zoom:50%;" />
+<img src="../images/ch01/all.png" alt="All" width="1322" />
 
 我们从下载模型相关文件开始。
 
@@ -71,7 +71,7 @@ code/models
 
 简而言之，Safetensors文件包含两个部分：**元数据**（Metadata）和权重数据。文件的前八个字节是元数据的字节数，用**小端序**（Little-Endian）编码。然后是元数据，JSON格式。最后是权重数据，按顺序排列着所有模型权重。前八个字节加上元数据合在一起，又叫做**文件头**（Header）。Safetensors文件的内容可以直观地画成下面这样：
 
-<img src="../images/ch02/file.png" alt="File" style="zoom:50%;" />
+<img src="../images/ch02/file.png" alt="File" width="434" />
 
 注意，上面这张只是示意图。图中显示的元数据字节数、元数据，以及权重数据，都不是按真实占比画的，你理解大致内容即可。下面我们用`hexdump`命令看一下`model.safetensors`文件：
 
@@ -149,7 +149,7 @@ code/models
 
 从前面的JSON元数据里，我们可以大致看出：模型权重数据，大部分都是Decoder块。词嵌入层参数只占大约21%，30个Decoder块加起来，大概占了79%，具体的账我们在本章后面再算。总体的权重数据分布如下图所示（大致是真实比例）：
 
-<img src="../images/ch02/weights.png" alt="Weights" style="zoom:50%;" />
+<img src="../images/ch02/weights.png" alt="Weights" width="787" />
 
 总之，拿到元数据，我们是很容易按顺序扫描Safetensors文件，或者随机从文件里读取任意一个张量数据的。这一章的随书源代码里有一个`load_weights.py`脚本，就是根据JSON元数据，读取每一个张量，打印出它的信息，你也可以跑一下试试。这个脚本会打印出三个表格：第一个按Decoder块（也就是层）分组汇总，第二个不分组，把每个张量都列出来，第三个是参数量的统计。我们先来看分组表格，下面是它的输出：
 
@@ -188,7 +188,7 @@ code/models
 
 其实从前面的JSON元数据，我们也能大概看出每一层的数据分布。我们把它画出来，类似下图。一个Decoder块有9个张量，这里按参数量画成了长条：左边三块是FFN需要的权重矩阵，右边四块是注意力机制需要的权重矩阵，两个RMSNorm向量太小，画不出来。
 
-<img src="../images/ch02/layer.png" alt="Layer" style="zoom:50%;" />
+<img src="../images/ch02/layer.png" alt="Layer" width="636" />
 
 如果你还看不懂这些数据，也没关系。后面介绍注意力机制和前馈网络时，我们会详细介绍这些权重。我们前面提到的`load_weights.py`打印出的第二个表格，会把每一层都展开，类似下面这样：
 
@@ -243,7 +243,7 @@ code/models
 
 于是Google的Brain团队提出了[BrainFloat16](https://en.wikipedia.org/wiki/Bfloat16_floating-point_format)，简称bfloat16，或者BF16。它换了一种取舍：指数位保持8位，和FP32一样宽，尾数位砍到7位。FP32、FP16和BF16的指数位和尾数位的对比关系，见下图：
 
-<img src="../images/ch02/bf16.png" alt="BF16" style="zoom:50%;" />
+<img src="../images/ch02/bf16.png" alt="BF16" width="734" />
 
 BF16的设计取舍很清楚：**牺牲精度，保住动态范围**。它的指数位和FP32一样宽，所以FP32能表示的数量级它都能表示，只是有效数字少。对深度学习来说，数值溢出比精度损失致命得多，所以BF16赢了FP16。还有一个附带的好处：BF16转FP32是无损的，尾数位补零即可；反过来才会丢精度。
 
