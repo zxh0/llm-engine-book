@@ -63,7 +63,9 @@ const TOOLS = [
  *  rebases 是一串 [前缀, 换成什么]，第一个匹配上的生效：
  *  插图 ../images/ -> /images/ 和 AI 生成的章首图 ../aigc/ -> /aigc/。
  *  转成 Markdown 语法是为了让 VitePress 自动加上 base 前缀（裸 HTML 它不管）。
- *  Typora 写的 style="zoom:50%" 直接丢掉，图片宽度由正文栏宽兜住。 */
+ *  width 属性（像素宽度的一半，见 CLAUDE.md）借 Markdown 图片的 title 位带过去，
+ *  写成 ![alt](url "width=N")，docs/.vitepress/config.mts 里的渲染钩子再把它还原成
+ *  <img width="N">。Typora 写的 style="zoom:50%" 直接丢掉。 */
 function normalizeImages(md, rebases) {
   const rebase = (url) => {
     for (const [from, to] of rebases) {
@@ -76,7 +78,9 @@ function normalizeImages(md, rebases) {
       const src = attrs.match(/src="([^"]+)"/)
       if (!src) return whole
       const alt = attrs.match(/alt="([^"]*)"/)
-      return `![${alt ? alt[1] : ''}](${rebase(src[1])})`
+      const width = attrs.match(/\bwidth="(\d+)"/)
+      const title = width ? ` "width=${width[1]}"` : ''
+      return `![${alt ? alt[1] : ''}](${rebase(src[1])}${title})`
     })
     .replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (whole, alt, url) => `![${alt}](${rebase(url)})`)
 }
