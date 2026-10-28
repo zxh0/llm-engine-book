@@ -27,6 +27,7 @@ const PUBLISHED = new Set([
   'ch06_attn.md',
   'ch07_rope.md',
   'ch08_ffn.md',
+  'ch09_residual.md',
 ])
 
 // 工具：tools/<目录>/ 下的纯静态单页，整个目录原样拷到 docs/public/tools/<目录>/，

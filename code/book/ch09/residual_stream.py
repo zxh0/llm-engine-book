@@ -19,6 +19,7 @@
 """
 
 import sys
+import unicodedata
 
 import torch.nn.functional as F
 from tokenizers import Tokenizer
@@ -27,6 +28,15 @@ from model import Model
 from weights import MODEL_DIR
 
 ROUNDS = 20
+
+
+def width(s):
+    """显示宽度：中文占两列，其余占一列。str的对齐按字符数算，表头有中文就对不齐。"""
+    return sum(2 if unicodedata.east_asian_width(c) in "WF" else 1 for c in s)
+
+
+def rjust(s, n):
+    return " " * (n - width(s)) + s
 
 
 def forward(model, ids, skip=None, residual=True):
@@ -59,8 +69,8 @@ def main():
 
     # ---- 1、2：拆开每一层的两个加号 -----------------------------------------
     print("\n1. 最后一个位置：主干模长，以及每一层两个子层各加了多少（模长）")
-    print(f"   {'层':>3}{'进来时':>10}{'注意力加':>10}{'FFN加':>10}"
-          f"{'出去时':>10}{'前后余弦':>10}")
+    print("   " + rjust("层", 3) + "".join(rjust(h, 10) for h in
+          ("进来时", "注意力加", "FFN加", "出去时", "前后余弦")))
     x = model.to_embeddings(ids)
     for i, layer in enumerate(model.weights.layers):
         before = x[-1]

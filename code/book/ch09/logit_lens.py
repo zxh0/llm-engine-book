@@ -16,12 +16,26 @@
 """
 
 import sys
+import unicodedata
 
 import torch
 from tokenizers import Tokenizer
 
 from model import Model
 from weights import MODEL_DIR
+
+
+def width(s):
+    """显示宽度：中文占两列，其余占一列。str的对齐按字符数算，有中文就对不齐。"""
+    return sum(2 if unicodedata.east_asian_width(c) in "WF" else 1 for c in s)
+
+
+def ljust(s, n):
+    return s + " " * (n - width(s))
+
+
+def rjust(s, n):
+    return " " * (n - width(s)) + s
 
 
 def lens(model, h):
@@ -47,14 +61,14 @@ def main():
 
     print(f"输入   {text!r}   {ids}")
     print(f"最终答案   {tok.id_to_token(final)!r}\n")
-    print(f"   {'位置':<8}{'排第一的词元':<16}{'概率':>8}"
-          f"{'最终答案排第几':>16}{'它的概率':>10}")
+    print("   " + ljust("位置", 10) + ljust("排第一的词元", 16) + rjust("概率", 8)
+          + rjust("最终答案排第几", 16) + rjust("它的概率", 10))
     for i, h in enumerate(stream):
         p = lens(model, h)
         top = int(p.argmax())
         rank = int((p > p[final]).sum()) + 1
         where = "词嵌入" if i == 0 else f"第{i - 1}层后"
-        print(f"   {where:<8}{tok.id_to_token(top)!r:<16}{float(p[top]):8.3f}"
+        print(f"   {ljust(where, 10)}{tok.id_to_token(top)!r:<16}{float(p[top]):8.3f}"
               f"{rank:>16}{float(p[final]):10.3f}")
 
 

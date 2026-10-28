@@ -6,6 +6,11 @@
 #     cd code
 #     ./download_model.sh
 #
+# 第十三章要换成 Qwen3-0.6B，用 REPO 指定仓库（各约 1.5 GB）：
+#
+#     REPO=Qwen/Qwen3-0.6B-Base ./download_model.sh
+#     REPO=Qwen/Qwen3-0.6B ./download_model.sh
+#
 # 已经下过的文件会跳过，中途断了再跑一遍会接着下。
 # 连不上 HuggingFace 的话，换个镜像站：
 #
@@ -29,6 +34,9 @@ mkdir -p "$DIR"
 # vocab.json 和 merges.txt 是老式（GPT-2 风格）的分词器文件，内容和 tokenizer.json
 # 重复：后者把词表、合并规则和预处理管线打包进了一个文件。但 merges.txt 是纯文本，
 # 一行一条合并规则，肉眼就能读，讲 BPE 的时候比啃 2 MB 的 JSON 舒服。
+#
+# 不是每个仓库都有全部这些文件：Qwen3 没有 special_tokens_map.json，SmolLM2 没有
+# LICENSE。缺了的先问一下服务器，确实是 404 就跳过，别的错误照样报出来。
 for f in config.json \
          model.safetensors \
          generation_config.json \
@@ -37,11 +45,18 @@ for f in config.json \
          special_tokens_map.json \
          vocab.json \
          merges.txt \
+         LICENSE \
          README.md \
          .gitattributes; do
     if [ -f "$DIR/$f" ]; then
         # 花括号不能省：紧跟中文的 $f 会被 shell 当成变量名的一部分
         echo "跳过 ${f}（已存在）"
+        continue
+    fi
+
+    code=$(curl -sIL -o /dev/null -w '%{http_code}' "$ENDPOINT/$REPO/resolve/main/$f" || true)
+    if [ "$code" = "404" ]; then
+        echo "跳过 ${f}（这个仓库里没有）"
         continue
     fi
 

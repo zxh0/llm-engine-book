@@ -14,11 +14,22 @@ n取4，和DeepSeek-V4的技术报告里一样。随机数的种子写死在SEED
     uv run python book/ch09/sinkhorn.py
 """
 
+import unicodedata
+
 import torch
 
 SEED = 0
 N = 4        # 主干扩成几条
 LAYERS = 30  # 乘多少层
+
+
+def width(s):
+    """显示宽度：中文占两列，其余占一列。str的对齐按字符数算，表头有中文就对不齐。"""
+    return sum(2 if unicodedata.east_asian_width(c) in "WF" else 1 for c in s)
+
+
+def rjust(s, n):
+    return " " * (n - width(s)) + s
 
 
 def sinkhorn(b, steps):
@@ -53,7 +64,7 @@ def main():
     free = torch.eye(N)
     ds = torch.eye(N)
     print(f"\n2. 每层乘一个随机的{N}×{N}矩阵，乘{LAYERS}层，看乘积里最大的数")
-    print(f"   {'层数':>4}{'不加约束':>14}{'双随机':>12}")
+    print("   " + rjust("层数", 4) + rjust("不加约束", 14) + rjust("双随机", 12))
     for i in range(1, LAYERS + 1):
         free = (torch.eye(N) + 0.5 * torch.randn(N, N, generator=g)) @ free
         ds = sinkhorn(torch.randn(N, N, generator=g), 20) @ ds
