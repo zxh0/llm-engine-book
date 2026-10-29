@@ -49,7 +49,7 @@ class Config:
         self.max_position_embeddings = self.raw["max_position_embeddings"]
 
         # 第八章新要的一个。FFN先升到这么宽，再降回576。
-        self.intermediate_size = self.raw["intermediate_size"] # 1536
+        self.intermediate_size = self.raw["intermediate_size"]       # 1536
 
         # 第十章新要的一个。0号词元就是`<|endoftext|>`，第三章数特殊词元时见过。
         # 采样器抽到它，生成循环就停。

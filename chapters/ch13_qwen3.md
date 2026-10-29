@@ -18,7 +18,7 @@ Qwen3是阿里在2025年4月底开源的一个模型系列，从0.6B到235B都�
 
 第一，它和SmolLM2是同一条路线：Decoder-only的Transformer，RMSNorm、RoPE、GQA、SwiGLU、权重共享一样不缺。差异不多，但每一处都正好落在前面某一章讲过的东西上，很适合拿来回顾。
 
-第二，它有**基座版**和**对话版**两份权重，`Qwen3-0.6B-Base`和`Qwen3-0.6B`，架构一模一样。基座版用来和`transformers`对拍，对话版用来兑现第十章那句话：引擎一行不改，换一份权重，就能对话。
+第二，它有**基座版**和**对话版**两份权重，`Qwen3-0.6B-Base`和`Qwen3-0.6B`，架构一模一样。基座版用来和`transformers`核对，对话版用来兑现第十章那句话：引擎一行不改，换一份权重，就能对话。
 
 第三，许可证是Apache 2.0，不需要登录就能下载，0.6B在CPU上也跑得动。
 
@@ -171,7 +171,7 @@ Qwen3-0.6B也做了权重共享，`tie_word_embeddings`是`true`，第四章的`
 
 ## 第五章：归一化
 
-`rms_norm_eps`从1e-5变成了1e-6。我们的`rms_norm()`从第五章起就是从配置里读这个数的，一行不用改。
+归一化只有一处不同：`rms_norm_eps`从1e-5变成了1e-6。我们的`rms_norm()`从第五章起就是从配置里读这个数的，一行不用改。
 
 这一章的`assumptions.py`专门做了一个实验：把Qwen3的`Config`里的字段，一个一个改回SmolLM2的样子，看看会发生什么。eps改成1e-5那一项，贪婪生成的20个词元和`transformers`一字不差。也就是说，这个数差了十倍，在这个例子里并没有改变结果。不过这不是偷懒的理由：它在这里碰巧没有影响，换一句话、生成得长一些，就未必了。照文件读，永远不会错。
 
@@ -189,14 +189,14 @@ Qwen3-0.6B也做了权重共享，`tie_word_embeddings`是`true`，第四章的`
   head_dim = 64             报错   RuntimeError: shape '[4, 16, 64]' is invalid for input of size 8192
 ```
 
-`q_proj`算出来是`(4, 2048)`，一共8192个数，而拆头的时候要的是`(4, 16, 64)`，只有4096个数，`view()`当场就报错了。这是全书少见的一个会报错的形状错误。所以`Config`现在先看文件里有没有`head_dim`，有就用文件的，没有才按老办法推：
+4个词元进来，`q_proj`算出来是`(4, 2048)`，一共8192个数，而拆头的时候要的是`(4, 16, 64)`，只有4096个数，`view()`当场就报错了。这是全书少见的一个会报错的形状错误。所以`Config`现在先看文件里有没有`head_dim`，有就用文件的，没有才按老办法推：
 
 ```python
         self.head_dim = self.raw.get(
             "head_dim", self.hidden_size // self.num_attention_heads)
 ```
 
-`attn()`、`rope_table()`和`KVCache`里，凡是用到每个头宽度的地方，都改成了读`config.head_dim`。
+除此之外，`attn()`、`rope_table()`和`KVCache`里，凡是用到每个头宽度的地方，都改成了读`config.head_dim`。
 
 GQA的比例也变了。SmolLM2是9个Q头配3个KV头，每3个Q头共用一组；Qwen3是16个Q头配8个KV头，每2个Q头共用一组。这一处代码不用改，`repeat_interleave()`的次数本来就是用两个头数相除算出来的。
 
@@ -204,7 +204,7 @@ GQA的比例也变了。SmolLM2是9个Q头配3个KV头，每3个Q头共用一组
 
 ## 第七章：位置编码
 
-`rope_theta`从100000变成了1000000，又大了十倍。第七章说过，底数越大，每个平面转得越慢，越能区分离得很远的两个位置，一般是为了支持更长的上下文。Qwen3-0.6B-Base的上下文长度是32768，是SmolLM2的四倍，对话版更是写到了40960。
+位置编码这边，`rope_theta`从100000变成了1000000，又大了十倍。第七章说过，底数越大，每个平面转得越慢，越能区分离得很远的两个位置，一般是为了支持更长的上下文。Qwen3-0.6B-Base的上下文长度是32768，是SmolLM2的四倍，对话版更是写到了40960。
 
 第七章还说过，这个数必须从`config.json`读，写死了程序照样能跑，只是位置全算错了。`assumptions.py`把它改回SmolLM2的100000试了一下：
 
@@ -242,7 +242,7 @@ Qwen3在这里还有一个新东西：**QK归一化**（QK-Norm）。就是第�
         return x
 ```
 
-`Config`里的`qk_norm`，是按`model_type`来认的，因为`config.json`里并没有一个字段专门说这件事，这是架构上的差别，不是超参数上的差别。下面那行`assert`是个保险：`Config`说要QK-Norm，权重文件里就必须有`q_norm`，反过来也一样，两边对不上就当场报错，不让它悄悄地算错。
+注意，`Config`里的`qk_norm`是按`model_type`来认的，因为`config.json`里并没有一个字段专门说这件事，这是架构上的差别，不是超参数上的差别。下面那行`assert`是个保险：`Config`说要QK-Norm，权重文件里就必须有`q_norm`，反过来也一样，两边对不上就当场报错，不让它悄悄地算错。
 
 第二步，在`attn()`里，拆完头之后、转RoPE之前，加两行：
 
@@ -320,9 +320,9 @@ $$
 
 
 
-## 对拍
+## 核对
 
-改完了代码，按全书的规矩，要和`transformers`对拍。这一章的`baseline.py`做的事情和第一章那个一样：用`transformers`跑一遍Qwen3-0.6B-Base，把逐层的中间结果、分数和贪婪生成的结果存成文件。然后`check_forward.py`拿我们的引擎回来，做第八章那四级验收：
+改完了代码，按全书的规矩，要和`transformers`核对。这一章的`baseline.py`做的事情和第一章那个一样：用`transformers`跑一遍Qwen3-0.6B-Base，把逐层的中间结果、分数和贪婪生成的结果存成文件。然后`check_forward.py`拿我们的引擎回来，做第八章那四级验收：
 
 ```
 模型   Qwen3-0.6B-Base
@@ -434,6 +434,16 @@ $$
 
 到这里，我们的推理引擎第一次真正和人对话了。引擎的代码，和第十一章比，只多了前面那张表里的几处改动；对话所需要的一切，只是换了一份权重，再拼了一段字符串。
 
+顺带一提，SmolLM2其实也有对话版，叫SmolLM2-135M-Instruct，和全书用的基座版一样大，架构也一模一样。把它下载下来，用`chat.py`的`--model`换上，问同一个问题：
+
+```
+The capital of France is Paris. Paris is a city located in the northern part of the country, and it is known for its historical landmarks, cultural institutions, and cultural events. Paris is also a major global center for fashion, gastronomy, and art.
+
+52个新词元，抽到EOS停下，用时3.7秒
+```
+
+第十章那个只会复读问题的135M模型，换了一份权重，就能好好回答了。跑的时候要加上`--greedy`：第二章说过，SmolLM2的`generation_config.json`里一个采样参数都没有，对话版也一样，`chat.py`找不到推荐的温度和top-p。另外，`chat.py`是按Qwen3的模板拼提示词的，末尾那对空的`<think>`标签SmolLM2并不认识，好在不影响它回答。具体命令见这一章随书源代码里的`README.md`。
+
 
 
 ## 下一代：Qwen3.5
@@ -463,7 +473,7 @@ $$
 
 除此之外，Qwen3.5还有不少新东西：注意力的输出多了一道门控（`attn_output_gate`）；RoPE只转每个头的四分之一维度；词表涨到了248320；它还自带一个视觉编码器，能看图。每一样都够写一章。
 
-遗憾的是，我们没法在这本书里跑它。不光是因为架构差别太大，还因为本书锁定的`transformers`版本还不支持它，而支持它的新版本，又要求更新的PyTorch，在我这台老旧的Intel芯片MacBook上装不上。没有`transformers`当参照，就没法对拍，而对拍是这本书的规矩。所以Qwen3-0.6B，就是我们这个推理引擎能走到的、离今天最近的地方。
+遗憾的是，我们没法在这本书里跑它。不光是因为架构差别太大，还因为本书锁定的`transformers`版本还不支持它，而支持它的新版本，又要求更新的PyTorch，在我这台老旧的Intel芯片MacBook上装不上。没有`transformers`当参照，就没法核对，而核对是这本书的规矩。所以Qwen3-0.6B，就是我们这个推理引擎能走到的、离今天最近的地方。
 
 
 

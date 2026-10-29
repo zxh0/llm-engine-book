@@ -30,6 +30,7 @@ from sampler import GREEDY, Sampler
 from weights import MODEL_DIR
 
 MAX_NEW_TOKENS = 20  # 兜底：模型一直不说EOS，也最多转这么多圈
+WIDTH = 78           # 印到屏幕上时的折行宽度，书里的代码块按80列排
 
 
 class Engine:
@@ -71,6 +72,32 @@ class Engine:
         return sampler(logits)           # (49152,) → 一个ID
 
 
+class LineWrap:
+    """边生成边折行：只在词元开头的空格处换行，模型生成的文字一个字不改。
+
+    模型生成的是不带换行的一整段，折行只是为了印在书里好看。
+    """
+
+    def __init__(self, width=WIDTH):
+        self.width = width
+        self.col = 0  # 当前这一行已经印了几个字符
+
+    def __call__(self, text):
+        lines = text.split("\n")
+        out = []
+        for n, seg in enumerate(lines):
+            if n > 0:  # 文字里本来就有的换行，照印，列数归零
+                out.append("\n")
+                self.col = 0
+            if seg.startswith(" ") and self.col > 0 and self.col + len(seg) > self.width:
+                out.append("\n")
+                seg = seg[1:]  # 换行顶替了那个空格
+                self.col = 0
+            out.append(seg)
+            self.col += len(seg)
+        return "".join(out)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("text", nargs="?", default="Once upon a time")
@@ -92,19 +119,20 @@ def main():
 
     # ---- 转起来，来一个印一个 -------------------------------------------------
     stream = StreamDecoder(tok)                            # Detokenizer：ID回到文字
+    wrap = LineWrap()
     out = list(ids)
     start = time.perf_counter()
-    print(args.text, end="", flush=True)
+    print(wrap(args.text), end="", flush=True)
     for i in engine.stream(ids, sampler, args.max_new_tokens):
         out.append(i)
-        print(stream.push(i), end="", flush=True)
-    print(stream.flush())
+        print(wrap(stream.push(i)), end="", flush=True)
+    print(wrap(stream.flush()))
     seconds = time.perf_counter() - start
 
     new = out[len(ids):]
     why = "抽到EOS" if len(new) < args.max_new_tokens else "到了上限"
-    print(f"\n{len(new)}个新词元，{why}停下，用时{seconds:.1f}秒，"
-          f"每个{seconds / max(len(new), 1):.2f}秒")
+    each = f"，每个{seconds / len(new):.2f}秒" if new else "" # 0个就不谈每个
+    print(f"\n{len(new)}个新词元，{why}停下，用时{seconds:.1f}秒{each}")
     print(f"ID       {out}")
 
 

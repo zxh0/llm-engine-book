@@ -13,12 +13,14 @@
 """
 
 import sys
+import textwrap
 
 from engine import Engine
 from sampler import Sampler
 
 SEED = 20261006   # 固定住，好让书里引用的输出能复现
 N = 40            # 每档生成多少个新词元
+WIDTH = 78        # 折行宽度，书里的代码块按80列排
 
 
 def main():
@@ -32,7 +34,9 @@ def main():
         out = engine.generate(ids, Sampler.build(temperature=t, seed=SEED), N)
         new = out[len(ids):]
         print(f"T={t}  （{len(set(new))}/{len(new)}个互不相同）")
-        print(f"  {tok.decode(out)!r}\n")
+        # 模型生成的是一整段，折行只是为了印在书里好看
+        print(textwrap.fill(tok.decode(out), WIDTH, initial_indent="  ",
+                            subsequent_indent="  ") + "\n")
 
     # ---- 可复现 --------------------------------------------------------------
     def run(seed):

@@ -127,8 +127,12 @@ class RandomSampler(Sampler):
         self.top_p = top_p
         # 每个采样器自带一个随机数生成器：固定种子就能复现，
         # 也不会和别处的随机数互相干扰。
+        # 不给种子时要显式调用seed()：torch.Generator()新建出来的种子是写死的，
+        # 不调用的话，每次运行抽到的都一样。
         self.generator = torch.Generator()
-        if seed is not None:
+        if seed is None:
+            self.generator.seed()
+        else:
             self.generator.manual_seed(seed)
 
     def filter(self, logits):

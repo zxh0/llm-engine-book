@@ -10,6 +10,7 @@
 cd code
 REPO=Qwen/Qwen3-0.6B-Base ./download_model.sh      # 基座版，对拍用，约1.2 GB
 REPO=Qwen/Qwen3-0.6B ./download_model.sh           # 对话版，聊天用，约1.5 GB
+REPO=HuggingFaceTB/SmolLM2-135M-Instruct ./download_model.sh   # 可选：SmolLM2的对话版，约270 MB
 uv run python book/ch13/config.py                  # 三个模型的配置并排比
 uv run python book/ch13/weights.py Qwen3-0.6B-Base # 每层11个张量
 uv run python book/ch13/tokenizers_diff.py         # 两个分词器切同一句话
@@ -20,6 +21,7 @@ uv run python book/ch13/assumptions.py             # 把SmolLM2的假设套到Qw
 uv run python book/ch13/engine.py "Once upon a time" --model Qwen3-0.6B-Base
 uv run python book/ch13/chat.py                    # 和对话版说几句话
 uv run python book/ch13/chat.py "What is 17 + 25?" --think --max-new-tokens 1200
+uv run python book/ch13/chat.py --model SmolLM2-135M-Instruct --greedy   # 它没有推荐的采样参数，要加--greedy
 ```
 
 ## 文件

@@ -49,7 +49,7 @@ class Config:
         self.max_position_embeddings = self.raw["max_position_embeddings"]
 
         # 第八章新要的一个。FFN先升到这么宽，再降回576。
-        self.intermediate_size = self.raw["intermediate_size"] # 1536
+        self.intermediate_size = self.raw["intermediate_size"]        # 1536
 
     def __repr__(self):
         return (f"Config(hidden_size={self.hidden_size}, "

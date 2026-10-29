@@ -19,10 +19,18 @@ uv run python book/ch10/sampler.py           # 一个分布被温度、top-k、t
 uv run python book/ch10/detokenizer.py       # 逐个decode印出�，字节缓冲不会
 uv run python book/ch10/engine.py            # 默认贪婪，和第八章一字不差
 uv run python book/ch10/engine.py "Once upon a time" --temperature 0.7 --top-p 0.9 --seed 42
+uv run python book/ch10/engine.py "Copyright 2024. All rights reserved."   # 第一个词元就是EOS
+uv run python book/ch10/engine.py "The capital of France is" --max-new-tokens 60   # 贪婪复读
+uv run python book/ch10/engine.py "The capital of France is" --max-new-tokens 60 \
+    --temperature 0.7 --top-p 0.9 --seed 42                                      # 随机采样，有幻觉
+uv run python book/ch10/engine.py $'<|im_start|>user\nWhat is the capital of France?<|im_end|>\n<|im_start|>assistant\n' \
+    --max-new-tokens 40                                                          # 基座模型不会对话
+uv run python book/ch10/engine.py $'Q: What is the capital of France?\nA:'   # 问答格式能答上来
 uv run python book/ch10/temperature.py       # 温度从0拧到1.5
-uv run python book/ch10/check_filters.py     # 三个filter和transformers对拍
+uv run python book/ch10/check_filters.py     # 三个filter和transformers核对
 uv run python book/ch10/check_draw.py        # 抽样：可复现、频率收敛
-uv run python book/ch10/check_forward.py     # 第八章的整机对拍，贪婪那条路不能变
+uv run python book/ch10/check_forward.py     # 第八章的整机核对，贪婪那条路不能变
+uv run --with matplotlib --with "numpy<2" python book/ch10/plot_sampling.py   # 画正文里的两张图
 ```
 
 ## 文件
@@ -31,14 +39,15 @@ uv run python book/ch10/check_forward.py     # 第八章的整机对拍，贪婪
 |---|---|
 | `sampler.py` | **这一章的重点**。三个filter是纯函数；`GreedySampler`和`RandomSampler`两个类，`Sampler.build`在构造时选一次 |
 | `detokenizer.py` | **这一章新增**。`StreamDecoder`：词元换回字节，进缓冲，凑齐了才印 |
-| `engine.py` | `infer`收一个`sampler`；`stream`抽到EOS就停，最多`max_new_tokens`圈；`generate`是收齐了的`stream` |
+| `engine.py` | `infer`收一个`sampler`；`stream`抽到EOS就停，最多`max_new_tokens`圈；`generate`是收齐了的`stream`；`LineWrap`边印边按78列折行，只在空格处断 |
 | `config.py` | 补了一个字段：`eos_token_id`（0） |
 | `model.py` | 第八章那个，**一字未改** |
 | `weights.py` | 第二章那个，**一字未改** |
-| `temperature.py` | **这一章新增**。同一个种子，温度取五档各跑一遍；同种子跑两次 |
-| `check_filters.py` | **这一章新增**。导入transformers，三个filter和它的warper逐位对拍，再故意做错两种 |
+| `temperature.py` | **这一章新增**。同一个种子，温度取五档各跑一遍，输出按78列折行；同种子跑两次 |
+| `check_filters.py` | **这一章新增**。导入transformers，三个filter和它的warper逐位核对，再故意做错两种 |
 | `check_draw.py` | **这一章新增**。抽样这一步的两条判据，不导入transformers |
 | `check_forward.py` | 第八章那个，只改了文件头 |
+| `plot_sampling.py` | **这一章新增**。画正文的`filters.png`和`temperature.png`，要加载模型，又要matplotlib，运行方式见上面 |
 
 ## 采样器
 
@@ -78,9 +87,10 @@ Sampler.build(temperature=0.7)  → RandomSampler(temperature=0.7, top_k=off, to
 
 T=0走`GreedySampler`，那是T趋于0的极限，不是除以0。生成循环里只有一句`sampler(logits)`，
 每一圈都不用再问是哪一种。每个`RandomSampler`自带一个`torch.Generator`，
-固定种子就能复现，也不受别处随机数的干扰。
+固定种子就能复现，也不受别处随机数的干扰。不给种子时要调用`seed()`：`torch.Generator()`
+新建出来的种子是写死的，不调用的话，每次运行抽到的都一样。
 
-## 对拍一：三个filter
+## 核对一：三个filter
 
 `check_filters.py`，三段真logits（`'Once upon a time'`、`'The capital of France is'`、
 `'def fibonacci(n):'`），温度三档、top-k三档、top-p三档，再串起来四组，
@@ -103,7 +113,7 @@ top-p留下几个词元，差别很大：`'Once upon a time'`在0.9时只留2个
 先温度会把分布压平，top-p要992个词元才凑够0.9；先top-p的话，候选集在原始分布上
 就定成了2个，温度再怎么调也只是改这2个的比例。
 
-## 对拍二：抽这一步
+## 核对二：抽这一步
 
 `check_draw.py`：
 
@@ -125,15 +135,16 @@ top-p留下几个词元，差别很大：`'Once upon a time'`在0.9时只留2个
 
 `T=0.5`和`top_k=2`两组也都在统计误差以内，`top_k=2`砍掉的两个词元一次都没被抽到。
 
-## 对拍三：贪婪那条路不能变
+## 核对三：贪婪那条路不能变
 
 `check_forward.py`四级全过，和第八章的输出完全相同。默认采样器是`GREEDY`，
 `engine.py`不带参数跑出来的还是第一章那句话：
 
 ```
-Once upon a time, there was a little girl named Lily. She lived in a big house with her family, but
+Once upon a time, there was a little girl named Lily. She lived in a big house
+with her family, but
 
-20个新词元，到了上限停下，用时1.0秒，每个0.05秒
+20个新词元，到了上限停下，用时1.4秒，每个0.07秒
 ```
 
 ## 温度
@@ -142,19 +153,29 @@ Once upon a time, there was a little girl named Lily. She lived in a big house w
 
 ```
 T=0  （32/40个互不相同）
-  "Once upon a time, there was a little girl named Lily. She lived in a big house with her family, but she didn't have many toys to play with. One day, her mom told her that she could"
+  Once upon a time, there was a little girl named Lily. She lived in a big
+  house with her family, but she didn't have many toys to play with. One day,
+  her mom told her that she could
 
 T=0.3  （33/40个互不相同）
-  'Once upon a time, there was a curious little girl named Lily. She loved to learn new things and had a special talent for remembering things. One day, she found a book about the history of the United States and'
+  Once upon a time, there was a curious little girl named Lily. She loved to
+  learn new things and had a special talent for remembering things. One day,
+  she found a book about the history of the United States and
 
 T=0.7  （35/40个互不相同）
-  'Once upon a time, there was a curious little girl named Lily. She loved to count things around her - apples, balls, and even bugs! One day she found two little sticks, each about the size of a'
+  Once upon a time, there was a curious little girl named Lily. She loved to
+  count things around her - apples, balls, and even bugs! One day she found
+  two little sticks, each about the size of a
 
 T=1.0  （37/40个互不相同）
-  'Once upon a time, Baron Thibaud of Edinburgh was thinking of getting married. He had stayed awake all day to try and remember the date, but no coffee apart from some jolly tea from his father’s'
+  Once upon a time, Baron Thibaud of Edinburgh was thinking of getting
+  married. He had stayed awake all day to try and remember the date, but no
+  coffee apart from some jolly tea from his father’s
 
 T=1.5  （40/40个互不相同）
-  "Once upon a time, Baron Thwaite branched off Jay Dopien Lynch Hay Haz Johnny Flat Light By Flowers strong diversity to org Shaw Hom\\'taresite Night apart Troy buried Freaked Harmonologies residing Extreme outs company"
+  Once upon a time, Baron Thwaite branched off Jay Dopien Lynch Hay Haz Johnny
+  Flat Light By Flowers strong diversity to org Shaw Hom\'taresite Night apart
+  Troy buried Freaked Harmonologies residing Extreme outs company
 
 T=1.0，种子20261006跑两次     一字不差
 T=1.0，换成种子20261007     不一样
@@ -185,9 +206,9 @@ T=1.0，换成种子20261007     不一样
 ## 引擎现状
 
 ```
-ids → embed → [norm → attn → norm → ffn] × 30 → norm → lm_head → logits → sampler → id
- ^                                                                                 |
- +------------------------------------ append to ----------------------------------+
+ids → embed → [norm → attn → norm → ffn] × 30 → norm → lm_head → sampler → id
+ ^                                                                         |
+ +------------------------------- append to -------------------------------+
 ```
 
 引擎是一个完整的循环了。但每生成一个词元，都要把整串从头forward一遍，
