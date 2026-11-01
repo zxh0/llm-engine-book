@@ -16,6 +16,8 @@
     uv run python book/ch11/check_cache.py
 """
 
+import textwrap
+
 from engine import Engine
 from kv_cache import KVCache
 from model import Model
@@ -31,6 +33,16 @@ def first_diff(a, b):
         if x != y:
             return i
     return None if len(a) == len(b) else min(len(a), len(b))
+
+
+def show(label, text):
+    """印一段生成的文字：标签单独一行，文字缩进、按空格折行，书里排版不超过80列。
+
+    先过一遍repr再去掉两边的引号：换行这类看不见的字符会印成`\\n`，不会把版面打乱。
+    """
+    print(f"    {label}")
+    for line in textwrap.wrap(repr(text)[1:-1], width=66):
+        print(f"      {line}")
 
 
 def greedy(model, ids, n, cache):
@@ -71,18 +83,23 @@ def main():
     out = engine.generate(ids, max_new_tokens=N)
     cache = KVCache(model.config, len(out))
     model.forward(ids[:-1], cache)                     # 先把prompt除最后一个存进去
-    worst, worst_at, margin = 0.0, 0, float("inf")
+    worst, worst_at = 0.0, 0
+    margin, margin_at, diff_there = float("inf"), 0, 0.0
     for t in range(len(ids), len(out) + 1):
         a = model.forward(out[t - 1:t], cache)         # 带缓存，喂1个
         b = model.forward(out[:t])                     # 不带缓存，整串
-        rel = (a - b).abs().max().item() / b.abs().max().item()
+        diff = (a - b).abs().max().item()
+        rel = diff / b.abs().max().item()
         if rel > worst:
             worst, worst_at = rel, t
         top2 = b.topk(2).values                        # 第一名领先第二名多少
-        margin = min(margin, (top2[0] - top2[1]).item())
+        gap = (top2[0] - top2[1]).item()
+        if gap < margin:                               # 最容易翻的位置，记下两条路在这里差多少
+            margin, margin_at, diff_there = gap, t, diff
     print(f"\n二  逐个位置比logits，共{len(out) - len(ids) + 1}个位置")
     print(f"    最大相对误差   {worst:.1e}（序列长{worst_at}时）")
-    print(f"    第一名领先第二名，最少也有   {margin:.1e}")
+    print(f"    第一名领先第二名最少的位置   序列长{margin_at}时，领先{margin:.1e}，"
+          f"两条路在这里差{diff_there:.1e}")
 
     # ---- 三：接着说 -----------------------------------------------------------
     cache = KVCache(model.config, len(ids) + 20)
@@ -98,14 +115,14 @@ def main():
     # ---- 四：故意做错 ---------------------------------------------------------
     print(f"\n四  故意做错，贪婪生成{N // 5}个")
     good = engine.generate(ids, max_new_tokens=N // 5)
-    print(f"    正确         {tok.decode(good)!r}")
+    show("正确", tok.decode(good))
 
     # 错法一：RoPE的位置每次都从0起。decode时新词元永远以为自己在第0个位置。
     model.rope = lambda x, start=0: Model.rope(model, x)
     bad = engine.generate(ids, max_new_tokens=N // 5)
     del model.rope                                     # 摘掉，恢复原样
-    print(f"    位置从0起    {tok.decode(bad)!r}")
-    print(f"                 第{first_diff(good, bad) - len(ids) + 1}个新词元起不同，不报错")
+    show(f"位置从0起：第{first_diff(good, bad) - len(ids) + 1}个新词元起不同，不报错",
+         tok.decode(bad))
 
     # 错法二：每层写完就advance。第1层的k写在第T个位置之后，第2层更往后……
     class EveryLayer(KVCache):
@@ -117,8 +134,8 @@ def main():
     cfg = model.config
     room = (len(ids) + N) * (cfg.num_hidden_layers + 1)   # 每圈挪31次，要留够地方
     bad = greedy(model, ids, N // 5, EveryLayer(cfg, room))
-    print(f"    每层advance  {tok.decode(bad)!r}")
-    print(f"                 第{first_diff(good, bad) - len(ids) + 1}个新词元起不同，不报错")
+    show(f"每层advance：第{first_diff(good, bad) - len(ids) + 1}个新词元起不同，不报错",
+         tok.decode(bad))
 
 
 if __name__ == "__main__":

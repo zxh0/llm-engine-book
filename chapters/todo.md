@@ -15,6 +15,14 @@
 | G1 | **第十四章的CUDA数字，一共5处**`<!-- TODO CUDA -->`：在Colab或云GPU上依次跑`check_device.py`、`speed.py`、`batch.py --dtype bfloat16 --max-batch 64`、`flash.py --max-t 16384`（`--device cuda`），把表补进正文；峰值显存只有CUDA量得到。环境：Linux+CUDA上torch不受`<2.3`限制，顺便定下A5/A6的环境说明放哪（C23） | `ch14_gpu.md`第107、159、201、251、298行附近 |
 | G2 | **后记**：前言承诺了“然后再去学训练”那条路，还有量化、vLLM、llama.cpp；GPU和批处理已经挪进第十四章，不用再写（C7、F19、A1） | 新文件 |
 | G3 | **致谢**（C8） | `_preface.md` |
+| G19 | **附录A：矩阵相关公式**（2026-10-31，作者定） | `x_a_matrix.md` |
+| G20 | **附录B：引擎全部公式汇总**（2026-10-31，作者定） | `x_b_formulas.md` |
+| G21 | **附录C：论文列表**（2026-10-31，作者定）。`check-prose`的论文引用规则不查附录，这里可以每篇都写编号 | `x_c_papers.md` |
+| G22 | **附录D：术语表**（2026-10-31，作者定） | `x_d_glossary.md` |
+
+**四个附录都有初稿了（2026-10-31，Claude）**，待作者过目：A按向量、矩阵、旋转矩阵、指数分节，每条注明出处章；B按数据流排，附形状和参数量表；C按章列出正文已带arXiv号的24篇，年份取arXiv首发（Geva那篇正文写2021，附录是2020）；D取正文“**中文**（English）”形式的定义，另补了几个常用但没加粗定义过的词（标*）。还没定的：D要不要按拼音排；前言“本书结构”里还没提附录。**另外发现**：第十二章引用了FlashAttention论文的结论和图1，正文却没给论文标题和编号；在线Softmax、PagedAttention、Qwen3技术报告也只提了没引。候选条目写在`x_c_papers.md`开头的注释里。
+
+文件名规则（2026-10-31）：附录写成`chapters/x_X_slug.md`（原为`appendix_X_slug.md`，2026-10-31改名，让附录按文件名也排在正文后面），后记写成`chapters/afterword.md`。`merge.py`按“扉页、前言、各章、后记、各附录”合并，已用临时文件测过。
 | ~~G4~~ | **已完成（2026-10-24）**：第八章的图齐了。`af.png`由`code/book/ch08/plot_af.py`画出；`ffn2017`、`glu`、`swi-glu`、`ffn2020`由作者在`draw/ch08.drawio`重画；原计划的`swiglu.png`不再需要，`ffn2020`加上“三个矩阵”一节的四步形状已经够用；“参数大头”一节借用第二章的`layer.png` | |
 
 **图**
@@ -70,7 +78,7 @@
 | A4 | **要不要「本书用到的 PyTorch」一节，放哪。** 读者画像写的是「可以不懂 PyTorch」，但第二章一上来就在讲 `nn.Linear` 的 `(out, in)` 布局 | 第二章开头没法定稿 |
 | A5 | **环境搭建放哪**（装 uv、装 torch、下权重、代理坑）。`ch00.md` 并进前言后这块无家可归。下权重这一半已经有脚本了（`code/download_model.sh`，会跳过已有的、断了能接着下、连不上可以 `HF_ENDPOINT=https://hf-mirror.com`），正文只要指过去就行，剩下的是装 uv 和装 torch 那部分放哪 | 候选：第一章开头 / 附录 A |
 | A6 | **版本锁定怎么交代。** 读者用不同版本的 transformers，跑出来的数字和书里对不上。已决定「基准只存在代码里」，所以这条现在是 A5 的一部分，但仍需在某处告诉读者 | 同 A5 |
-| A7 | **要不要附录，要哪几个。** 候选：A 环境与踩坑（代理、`torch<2.3`、`transformers<5` 的锁定原因）、B SmolLM2 config 速查表（几乎每章都在引用）、C 术语对照 | |
+| A7 | **2026-10-31作者已定四个附录，见G19–G22；下面的旧候选（环境、config速查）要不要也收进来，再定。** **要不要附录，要哪几个。** 候选：A 环境与踩坑（代理、`torch<2.3`、`transformers<5` 的锁定原因）、B SmolLM2 config 速查表（几乎每章都在引用）、C 术语对照 | |
 | A8 | **图上标签用中文还是英文。** 正文中文，图上 Tokenization / Embedding Layer / Decoder Block 全英文。两种都行，但要统一 | 后面十几张机制图 |
 | A9 | **形状符号用哪几个字母。** 现状：序列长度全书用 `T`（正文 24 处、代码 21 处），而 `N` 在第二章已经被占了两次，`[N]` / `[M, N]` 指任意一维，`model.layers.N` 指层号。各家习惯不一，值得一并定下来再动：<br>· `N`：FlashAttention 论文、《Attention Is All You Need》（小写 `n`）<br>· `L`：PyTorch 文档（`nn.MultiheadAttention` / `nn.Transformer`），`S` 是源序列长度<br>· `T`：nanoGPT 的 `B, T, C`（time / channels），第一章正是把 nanoGPT 推荐给读者的<br>**注意 `N` 在 PyTorch 里是批量大小**（`(L, N, E)`），这本书用 PyTorch，改 `N` 会和框架文档冲突。改 `T` 的代价：45 处，外加第二章那两处定稿的 `N` | 第六、十一、十二章（形状最密的三章）；第十二章引 FlashAttention 论文时还要说明「论文的 $N$ 就是我们的 T」 |
 
@@ -107,7 +115,7 @@ B1 已定（见 D 节）：残差挪到后面一章讲。B2 是它的另一面�
 | C17 | **第九章（2026-10-17初稿）待核实/待定**：①按F7改成“残差流”结构，新增`code/book/ch09/`（四个引擎文件与ch08逐字节相同，加`residual_stream.py`、`logit_lens.py`、`sinkhorn.py`）；②前言约定一已补一句“第九章是唯一例外”；③HC/mHC/AttnRes的论文年份、DeepSeek-V4取n=4和Sinkhorn 20次、Kimi K3用AttnRes，都取自`ai_book/notes`，出版前核一遍；④插图从笔记复制：`nores/res/hc.png`来自`ds4/mhc1-3`，`sum/attnres/attnres_qkv/attnres_block.png`来自`attn_res/hc2,hc3,qkv,hc4`，drawio源未并进`draw/ch09.drawio`；HC两图用X/F记号、AttnRes图用h/f，正文已说明 | |
 | ~~C18~~ | **已同步（2026-10-17）**：`ch10/model.py`换成ch08那份，`config.py`的RoPE注释按ch08改。原问题：**`code/book/ch10/model.py`、`config.py`、`engine.py`和ch08不一致**，ch10是在ch07/ch08同步之前复制的，写第十章前要像ch08那样同步一遍 | 2026-10-17 发现 |
 | C19 | **第十章（2026-10-17初稿）**：脚手架块已不在正文里；EOS演示用的是“Copyright 2024. All rights reserved.”（贪婪下第一个词元就是EOS），讲故事的开头300个词元内都没抽到EOS；“基座模型和对话模型”一节只讲不跑，F14建议的“换Instruct权重一行不改”尚未落代码；`sampler.py`、`engine.py`里几行注释为匹配正文改成了单空格风格 | |
-| C20 | **第十一章（2026-10-17初稿）**：`prefill.png`、`decode.png`复制自`ai_book/notes/images/ds4/attn01.png`、`attn02.png`（单头，用n/d/k记号，正文已说明），drawio源是`ai_book/notes/draw/attn.drawio`的AttnP、AttnD两页，未并进`draw/ch11.drawio`；`speed.py`的耗时随机器负载浮动，引用的是2026-10-17那次运行 | |
+| C20 | **第十一章（2026-10-17初稿）**：`prefill.png`、`decode.png`复制自`ai_book/notes/images/ds4/attn01.png`、`attn02.png`（单头，用n/d/k记号，正文已说明），drawio源是`ai_book/notes/draw/attn.drawio`的AttnP、AttnD两页，未并进`draw/ch11.drawio`；`speed.py`的耗时随机器负载浮动，正文和`images/ch11/speed.png`引用的是2026-11-01那次运行（数据在`speed.json`；同一天第一次运行时机器负载高，带缓存那条前80个词元在90毫秒上下，弃用） | |
 | ~~C21~~ | **代码已补（2026-10-17）**：`code/book/ch12/`加了`online_softmax.py`、`flash_attn.py`，引擎文件和ch11逐字节相同，正文两处TODO已填、脚手架已删。实测在CPU上块大小合适时分块版反而更快（跳过未来块+装得进缓存），正文第十二章“在CPU上”的说法、第一章、第十四章相应改过。原条目：**第十二章（2026-10-17初稿，代码未写）**：正文取自`ai_book/notes/2026-07-02-FA.md`，图`attn/attn2/fa1-4/a1-a4.png`从`notes/images/fa/`复制，drawio源是`notes/draw/fa.drawio`；`images/ch12/progress.png`暂时是ch11那张的副本（状态相同），要不要单独画由作者定；“代码实现”“代码效果”两节只留了`<!-- TODO -->`占位，`code/book/ch12/`还不存在；脚手架块按新计划改过，写完代码后删；A100三行带宽数字取自FlashAttention论文图1，出版前核一遍 | |
 | C22 | **第十三章（2026-10-17初稿）**：新增`code/book/ch13/`（从ch11复制），`download_model.sh`支持`REPO`、缺文件跳过；前言“本书结构”改成十四章三段（第三段“走出去”：十三Qwen3、十四GPU），后记那一行删了GPU和批处理，作者过目；封面`aigc/ch13.png`还没有；章内引用Qwen3.5的发布时间和“transformers 4.57.6不支持qwen3_5”已实测，“新版本要更新的PyTorch”沿用`code/CLAUDE.md`的记录；思考模式那段输出用了固定种子20261017 | |
 | C23 | **第十四章（2026-10-17初稿，CUDA数字待补）**：新增`code/book/ch14/`（从ch13复制；`Model`多了`device`/`dtype`/`attn_impl`，张量可带批次，RMSNorm先升fp32；默认参数下和ch13逐位相同）；作者电脑只有MPS，torch 2.2的MPS不支持bf16，正文数字来自CPU和MPS；正文里5处`<!-- TODO CUDA -->`，要在Colab或云GPU上跑`check_device.py`、`speed.py`、`batch.py`、`flash.py`补表；Linux+CUDA上torch不受`<2.3`限制，环境说明（A5、A6）可放在这一章或附录；封面`aigc/ch14.png`还没有 | |
@@ -253,6 +261,18 @@ B1 已定（见 D 节）：残差挪到后面一章讲。B2 是它的另一面�
 - 安全Softmax的定义（加粗）挪到第十章，第十二章改成引用，推导仍在第十二章
 - BOS/EOS的全称在第三章第一次出现处定义
 - SmolLM2-135M-Instruct下载实测过，写进第十三章“和它说几句话”末尾：`chat.py`要加`--greedy`（它没有推荐采样参数，不加会`KeyError`）；`chat.py`按Qwen3模板拼的空`<think>`标签不影响回答
+
+---
+
+## J. 前十章通读意见（2026-10-30，Claude通读ch01–ch10后，待处理）
+
+大部分意见已在前面各节：开头回顾和小结程式化（E12、E13）、第三章偏长（E14）、第九章后三节（I2）、“不报错，全错”汇总成表（H8、F18）、DeepSeek-V4.1-Flash（E8、G15，另外5120在今天不算大，“高达”也可斟酌）、DeepSeek-V4与Kimi K3的出处（G12、I5）。前言和第九章在“不讲反向传播”上并不冲突：`_preface.md`第85行已经写明第九章是唯一例外。下面只记新的。
+
+| # | 位置 | 问题 | 建议 |
+|---|---|---|---|
+| J1 | `ch04_embedding.md`特殊词元那张表 | 可选：ID 5、7、8、9的词嵌入几乎一模一样（模长都是3.308），ID 1、2也很接近（3.306、3.307），很可能是训练时几乎没被更新过的词元，正文没提 | 表后补一句，顺便呼应第三章“这14条推理时一个都用不上” |
+| J2 | `ch04_embedding.md:145` | 可选：“随机初始化的，模长大致是1”核过是对的：`config.json`的`initializer_range`是0.0417，也就是 $1/\sqrt{576}$ ，576维下模长约为1。正文没给依据，读者可能存疑 | 补一句出处，指向`initializer_range` |
+| J3 | `CLAUDE.md`“Em-dash cleanup is in progress”那条 | 还写着“110个破折号留在ch06–ch12和`_preface.md`”，实际全书已经清零（见I节开头） | 删掉这条，或改成“已清零，新写的不要再引入” |
 
 ---
 

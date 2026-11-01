@@ -7,8 +7,10 @@
     python3 merge.py --check               # 只检查，不写入（有差异时退出码为 1）
 
 约定：
-- 只合并 _front.md、_preface.md 和 chNN_slug.md，按文件名排序决定顺序
-  （下划线排在字母前，所以扉页和前言自然在最前面）；todo.md 不是书的内容，不合并；
+- 只合并 _front.md、_preface.md、chNN_slug.md、afterword.md 和附录 x_X_slug.md
+  （X 是一个小写字母），顺序是：扉页、前言、各章、后记、各附录，同一类里按文件名排；
+  todo.md 不是书的内容，不合并。附录用 x_ 开头，按字母序本来就在 ch 后面；
+  但 afterword 按字母序会排在 ch 前面，所以顺序不能只靠 sorted()，见 ORDER；
 - 分章文件里章标题是一级标题（#），合并时整体降一级（# -> ##，## -> ###，依此类推），
   全书只保留扉页的书名一个一级标题；代码块里的 # 是注释，不动；
 - 每章之间自动插入分页符 <div style="page-break-after: always;"></div>；
@@ -29,11 +31,24 @@ PAGE_BREAK = '<div style="page-break-after: always;"></div>'
 GENERATED_NOTICE = "<!-- 自动生成，请不要编辑！ -->"
 VERSION_RE = re.compile(r"版本：v\d{4}\.\d{2}\.\d{2}")
 FRONT = "_front.md"
-CHAPTER_RE = re.compile(r"^(_preface|ch\d+_.+)\.md$")
+# 书里的先后顺序：(文件名规则, 排第几)。不匹配任何一条的文件不合并。
+ORDER = [
+    (re.compile(r"^_front\.md$"), 0),
+    (re.compile(r"^_preface\.md$"), 1),
+    (re.compile(r"^ch\d+_.+\.md$"), 2),
+    (re.compile(r"^afterword\.md$"), 3),
+    (re.compile(r"^x_[a-z]_.+\.md$"), 4),
+]
+
+
+def rank(path: Path):  # 不写 -> int | None：系统 python3 是 3.9，不认这种写法
+
+    return next((r for pattern, r in ORDER if pattern.match(path.name)), None)
 
 
 def chapter_files() -> list[Path]:
-    files = sorted(p for p in CHAPTERS.glob("*.md") if p.name == FRONT or CHAPTER_RE.match(p.name))
+    ranked = [(rank(p), p.name, p) for p in CHAPTERS.glob("*.md")]
+    files = [p for r, _, p in sorted(t for t in ranked if t[0] is not None)]
     if not files or files[0].name != FRONT:
         sys.exit(f"没有找到扉页 {CHAPTERS / FRONT}")
     return files

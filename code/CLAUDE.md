@@ -163,7 +163,7 @@ Caching is a swappable strategy, never a branch. `NoCache` (singleton `NO_CACHE`
 
 `generate(cache=...)` takes `True` (fresh cache), `False` (the O(n²) path), or an existing `KVCache` to continue from a warm one. The decode loop is shared; the only line that differs is `feed = next_id if cache else ids`.
 
-After `generate` returns, the cache holds `len(output) - 1` tokens — the final token came out of the last forward pass and was never fed back in. Continuing therefore means feeding `output[:, -1:]`.
+After `generate` stops at `max_new_tokens`, the cache holds `len(output) - 1` tokens — the final token came out of the last forward pass and was never fed back in. After it stops on EOS, the cache holds all of `output` (EOS itself is never appended). Either way, continuing means passing the full history back with the cache; `ids[cache.length:]` feeds whatever is missing.
 
 ### KV cache invariants
 

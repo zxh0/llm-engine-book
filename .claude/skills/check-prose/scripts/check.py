@@ -138,9 +138,13 @@ ARXIV_TAIL_PAT = re.compile(r'\s*（arXiv:\d{4}\.\d{4,5}）')
 PAPER_WINDOW = 30  # 书名号前后多少个字符内出现「论文」，就当它是论文而不是书
 
 
-def _book_order(path):
-    """同目录下按文件名排好的书稿：_front、_preface、ch01、ch02……
+APPENDIX_PAT = re.compile(r'^x_[a-z]_.+\.md$')
 
+
+def _book_order(path):
+    """同目录下按书里的顺序排好的书稿：_front、_preface、ch01……ch14、afterword。
+
+    和 merge.py 的 ORDER 一致，只是不含附录（附录不查这条规则，见下）。
     只对 chapters/ 这种「一章一个文件」的目录有意义；目录里没有 chNN_*.md
     时返回只含自己的列表，规则退化成单文件内检查。
     """
@@ -148,8 +152,9 @@ def _book_order(path):
     names = sorted(n for n in os.listdir(d) if n.endswith('.md'))
     if not any(re.match(r'ch\d{2}_', n) for n in names):
         return [os.path.abspath(path)]
-    return [os.path.join(d, n) for n in names
-            if (n.startswith('_') or re.match(r'ch\d{2}_', n))]
+    head = [n for n in names if n.startswith('_') or re.match(r'ch\d{2}_', n)]
+    tail = [n for n in names if n == 'afterword.md']
+    return [os.path.join(d, n) for n in head + tail]
 
 
 def _citations(lines, masked):
@@ -170,7 +175,10 @@ def rule_paper_citation(lines, masked, path):
     「全书第一次」按文件名顺序算，所以要把整本书一起扫，单查一章也会先读
     它前面的各章。书名号里是英文、前后 30 个字符内有「论文」或带了编号的，
     才当成论文；像《Build a Large Language Model (From Scratch)》这样的书不管。
+    附录（x_X_*.md）不查：论文列表本来就要把每篇的编号再写一遍。
     """
+    if APPENDIX_PAT.match(os.path.basename(path)):
+        return []
     seen = set()
     me = os.path.abspath(path)
     for p in _book_order(path):

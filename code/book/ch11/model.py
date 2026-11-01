@@ -150,7 +150,6 @@ class Model:
         n_heads = self.config.num_attention_heads     # 9
         n_kv_heads = self.config.num_key_value_heads  # 3
         head_dim = self.config.hidden_size // n_heads # 576 / 9 = 64
-        start = cache.length # x的第0行在第几个位置
 
         # 三次线性投影。权重按(out, in)存放，所以要转置。
         q = x @ layer["q_proj"].T # (T, 576) → (T, 576)
@@ -163,6 +162,7 @@ class Model:
         v = v.view(T, n_kv_heads, head_dim).transpose(0, 1) # (3, T, 64)
 
         # RoPE：q和k按位置转一下，v不动。位置从start起，不是从0起。
+        start = cache.length # x的第0行在第几个位置
         q = self.rope(q, start) # (9, T, 64)
         k = self.rope(k, start) # (3, T, 64)
 
@@ -172,7 +172,7 @@ class Model:
         L = k.shape[1]               # start + T
 
         # GQA：每个kv头连续复制3份，排成[0,0,0,1,1,1,2,2,2]，对齐9个q头。
-        # 写成k.repeat(3, 1, 1)会排成[0,1,2,0,1,2,0,1,2]，形状一样，不报错，全错。
+        # 写成k.repeat(3, 1, 1)会排成[0,1,2,0,1,2,0,1,2]，不报错，全错。
         group = n_heads // n_kv_heads         # 3
         k = k.repeat_interleave(group, dim=0) # (3, L, 64) → (9, L, 64)
         v = v.repeat_interleave(group, dim=0) # (3, L, 64) → (9, L, 64)
@@ -243,7 +243,7 @@ class Model:
         hidden = self.to_embeddings(ids)                   # (T,) → (T, 576)
         for i, layer in enumerate(self.weights.layers):    # 30个Decoder块
             hidden = self.block(hidden, layer, i, cache)
-        cache.advance(len(ids))                            # 30层都写完了，才挪偏移
+        cache.advance(len(ids))                            # 30层都写完了再挪
         hidden = self.rms_norm(hidden, self.weights.norm)  # 出口处那一个norm
         return self.to_logits(hidden[-1])                  # (576,) → (49152,)
 

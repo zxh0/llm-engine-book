@@ -1,6 +1,6 @@
 """第十一章 · 快了多少
 
-全书唯一一次正当地谈性能。前十章的问题都是「算得对不对」，这一章才问「算得快不快」，
+从这一章起才正当地谈性能。前十章的问题都是「算得对不对」，这一章开始问「算得快不快」，
 而且前提是`check_cache.py`先证明了：快了，但一个ID都没变。
 
     一  白算了多少：不带缓存要算1 + 2 + … + n个位置，带缓存只算n个
@@ -9,12 +9,17 @@
 
 数字和机器有关，书里引用的是作者那台Intel Mac，CPU，6个线程。
 
+每个词元的耗时、prefill和decode的结果，还会写进同目录下的`speed.json`，
+`plot_speed.py`读它画图。图和正文引用的数字出自同一次运行。
+
 运行：
     cd code
     uv run python book/ch11/speed.py
 """
 
+import json
 import time
+from pathlib import Path
 
 from engine import Engine
 from kv_cache import KVCache
@@ -22,6 +27,7 @@ from kv_cache import KVCache
 N = 200        # 每条路生成多少个新词元
 EVERY = 20     # 每隔多少个打一行
 WEIGHT_BYTES = 134_515_008 * 4  # 第二章数出来的参数量，fp32
+DATA = Path(__file__).with_name("speed.json")  # 给plot_speed.py画图用
 
 
 def per_token_times(engine, ids, cache):
@@ -92,6 +98,16 @@ def main():
           f"算{T}个词元；")
     print(f"    decode读一遍，只算1个。decode这一步相当于每秒搬"
           f"{WEIGHT_BYTES / decode / 1e9:.1f} GB，时间主要花在搬上。")
+
+    # ---- 存下来，给plot_speed.py画图 ------------------------------------------
+    DATA.write_text(json.dumps({
+        "every": EVERY,
+        "no_cache_ms": [round(t * 1000, 3) for t in slow[:n]],
+        "cache_ms": [round(t * 1000, 3) for t in fast[:n]],
+        "prefill": {"tokens": T, "ms": round(prefill * 1000, 3)},
+        "decode_ms": round(decode * 1000, 3),
+    }, indent=1), encoding="utf-8")
+    print(f"\n    每个词元的耗时已写入 {DATA.name}")
 
 
 if __name__ == "__main__":

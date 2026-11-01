@@ -58,15 +58,17 @@ class Engine:
             return NO_CACHE
         return cache                                       # 接着用上一轮的
 
-    def stream(self, ids, sampler=GREEDY, max_new_tokens=MAX_NEW_TOKENS, cache=True):
+    def stream(self, ids, sampler=GREEDY, max_new_tokens=MAX_NEW_TOKENS,
+               cache=True):
         """一串词元ID进去，新ID一个一个吐出来。
 
         每圈：喂缓存里还没有的那几个 → 取最后一个位置的logits → 采样 → 追加 → 再来。
         抽到EOS就停，EOS本身不吐出来。
 
-        吐完之后，缓存里比`ids`加上吐出来的少一个：最后吐出来的那个是最后一次
-        forward算出来的，还没被喂回去。所以想接着上一轮往下说，就把整串历史连同
-        那个缓存一起交回来，`ids[cache.length:]`自然从漏掉的那一个喂起。
+        到了上限停下时，缓存里比`ids`加上吐出来的少一个：最后吐出来的那个是最后
+        一次forward算出来的，还没被喂回去。抽到EOS停下时，两边一样多。想接着上一轮
+        往下说，就把整串历史连同那个缓存一起交回来，`ids[cache.length:]`自然从还没
+        喂过的那几个喂起。
         """
         cache = self.new_cache(cache, len(ids) + max_new_tokens)
         ids = list(ids)  # 复制一份，不去改调用方手里那个list
@@ -78,7 +80,8 @@ class Engine:
             ids.append(next_id)
             yield next_id
 
-    def generate(self, ids, sampler=GREEDY, max_new_tokens=MAX_NEW_TOKENS, cache=True):
+    def generate(self, ids, sampler=GREEDY, max_new_tokens=MAX_NEW_TOKENS,
+                 cache=True):
         """一串词元ID进去，一串更长的ID出来。`stream`收齐了再交出去。"""
         return list(ids) + list(self.stream(ids, sampler, max_new_tokens, cache))
 

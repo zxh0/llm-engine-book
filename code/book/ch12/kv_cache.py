@@ -57,11 +57,12 @@ class KVCache(NoCache):
     """
 
     def __init__(self, config, max_len, dtype=torch.float32):
-        n_kv_heads = config.num_key_value_heads                       # 3
-        head_dim = config.hidden_size // config.num_attention_heads    # 64
-        shape = (n_kv_heads, max_len, head_dim)                        # (3, max_len, 64)
-        self.k = [torch.zeros(shape, dtype=dtype) for _ in range(config.num_hidden_layers)]
-        self.v = [torch.zeros(shape, dtype=dtype) for _ in range(config.num_hidden_layers)]
+        n_kv_heads = config.num_key_value_heads          # 3
+        head_dim = config.hidden_size // config.num_attention_heads  # 64
+        shape = (n_kv_heads, max_len, head_dim)          # (3, max_len, 64)
+        n_layers = config.num_hidden_layers              # 30
+        self.k = [torch.zeros(shape, dtype=dtype) for _ in range(n_layers)]
+        self.v = [torch.zeros(shape, dtype=dtype) for _ in range(n_layers)]
         self.max_len = max_len
         self.length = 0  # 已经存了几个位置，盖掉NoCache那个类属性
 
@@ -77,7 +78,8 @@ class KVCache(NoCache):
         T = k.shape[1]
         end = self.length + T
         if end > self.max_len:
-            raise ValueError(f"缓存满了：要存到第{end}个位置，只开了{self.max_len}个")
+            raise ValueError(
+                f"缓存满了：要存到第{end}个位置，只开了{self.max_len}个")
         self.k[i][:, self.length:end] = k
         self.v[i][:, self.length:end] = v
         return self.k[i][:, :end], self.v[i][:, :end]

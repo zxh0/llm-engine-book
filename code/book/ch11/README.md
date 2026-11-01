@@ -20,7 +20,8 @@ uv run python book/ch11/engine.py "Once upon a time" --max-new-tokens 200
 uv run python book/ch11/engine.py "Once upon a time" --max-new-tokens 200 --no-cache
 uv run python book/ch11/check_cache.py       # 带缓存和不带缓存逐个ID对拍，再故意做错两种
 uv run python book/ch11/check_forward.py     # 第十章的整机对拍，照样四级全过
-uv run python book/ch11/speed.py             # 快了多少，prefill和decode差在哪
+uv run python book/ch11/speed.py             # 快了多少，prefill和decode差在哪；写出speed.json
+uv run book/ch11/plot_speed.py               # 读speed.json，画images/ch11/speed.png（matplotlib按PEP 723现装）
 ```
 
 ## 文件
@@ -32,7 +33,8 @@ uv run python book/ch11/speed.py             # 快了多少，prefill和decode�
 | `engine.py` | `stream`里喂什么只有一句`ids[cache.length:]`；`cache`收True / False / 一个已有的`KVCache` |
 | `check_cache.py` | **这一章新增**。带缓存 == 不带缓存，逐个ID；接着上一轮往下说；故意做错两种 |
 | `check_forward.py` | 第十章那个，文件头改了，`block`多传一个层号 |
-| `speed.py` | **这一章新增**。每个词元的耗时曲线，prefill和decode |
+| `speed.py` | **这一章新增**。每个词元的耗时曲线，prefill和decode；数据存进`speed.json` |
+| `plot_speed.py`、`speed.json` | **这一章新增**。正文那张测速图，和正文的数字出自同一次运行 |
 | `config.py` | 第十章那个，**一字未改**。缓存要的层数、头数、头宽都是现成的 |
 | `sampler.py`、`detokenizer.py` | 第十章那两个，**一字未改** |
 | `weights.py` | 第二章那个，**一字未改** |
