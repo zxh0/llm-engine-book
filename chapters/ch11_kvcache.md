@@ -1,4 +1,4 @@
-# KV缓存
+# KV缓存（KV Cache）
 
 ![cover](../aigc/ch11.png)
 

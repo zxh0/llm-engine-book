@@ -3,17 +3,18 @@
 <script setup>
 import { withBase } from 'vitepress'
 import { book } from './.vitepress/sidebar.json'
-// 全书十二章，分成两段：一到十章「跑通」，十一、十二章「跑快」
+// 全书十四章，分成三段：一到十章「跑通」，十一、十二章「跑快」，十三、十四章「走出去」
 const toc = book.toc
 const part1 = toc.slice(0, 10)
-const part2 = toc.slice(10)
+const part2 = toc.slice(10, 12)
+const part3 = toc.slice(12)
 </script>
 
 > Build a Toy LLM Inference Engine (from Scratch)
 
 ::: warning 施工中（WIP）
-书名待定，正文还在很早期的草稿阶段。写得差不多的章节会陆续放到这个站点上，目录里能点开的就是已经发布的。还没发布的章节可以直接读仓库里的
-[chapters/](https://github.com/zxh0/llm-engine-book/tree/main/chapters)，不过那些内容更早期，可能有很多逻辑混乱、甚至胡言乱语的地方。
+书名待定，正文还在写。写完一章发一章，目录里能点开的就是已经发布的。还没发布的章节可以直接读仓库里的
+[chapters/](https://github.com/zxh0/llm-engine-book/tree/main/chapters)，不过那些还是草稿，可能有很多逻辑混乱、甚至胡言乱语的地方。
 :::
 
 ![自己动手写LLM推理引擎](/cover.png)
@@ -22,7 +23,7 @@ const part2 = toc.slice(10)
 
 用 Python 和 PyTorch，从零手写一个能跑的 LLM 推理引擎：加载真实的模型权重，把一段文字变成词元（Token），算完三十层 Transformer，采样出下一个词，再把它变回文字，然后循环。
 
-全程不使用 `transformers` 的建模代码。分词、权重加载、RMSNorm、RoPE、GQA、SwiGLU、KV Cache、采样、生成循环，全部自己写。目标模型是 **SmolLM2-135M**，跑在一台**普通笔记本的 CPU** 上。慢，但每一个数字都能和 HuggingFace 对上。
+全程不使用 `transformers` 的建模代码。解析文件这两件杂活，分词和读权重，交给 HF 的 `tokenizers` 和 `safetensors` 两个库；其余的 RMSNorm、RoPE、GQA、SwiGLU、KV 缓存、采样、生成循环，全部自己写。目标模型是 **SmolLM2-135M**，跑在一台**普通笔记本的 CPU** 上。慢，但每一个数字都能和 HuggingFace 对上。
 
 主张很简单：
 
@@ -34,7 +35,7 @@ const part2 = toc.slice(10)
 
 ## 目录
 
-十二章，分成两段。章节标题已经定下来了，正文还在填坑。已经发布的章节可以点开读：
+十四章，分成三段，最后还有一篇后记。已经发布的章节可以点开读：
 
 **跑通**：沿数据流从左走到右，每章造一个部件。
 
@@ -53,6 +54,17 @@ const part2 = toc.slice(10)
     <template v-else>{{ t.text }}</template>
   </li>
 </ul>
+
+**走出去**：同一个引擎，换一个模型，换一种硬件。
+
+<ul class="book-toc">
+  <li v-for="t in part3" :key="t.text" :class="{ published: t.link }">
+    <a v-if="t.link" :href="withBase(t.link)">{{ t.text }}</a>
+    <template v-else>{{ t.text }}</template>
+  </li>
+</ul>
+
+**后记**：量化、vLLM 与 llama.cpp，以及前面承诺过的「然后再去学训练」那条路。
 
 ## 随书代码
 
