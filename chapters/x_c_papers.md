@@ -2,10 +2,8 @@
 
 正文里提到的论文，按第一次出现的先后排列，最后一列是它出现在哪一章。每一篇都附上arXiv编号，在arXiv网站上搜索编号就能找到原文。年份取的是论文第一次发布在arXiv上的时间，和正式发表的年份可能差一年。
 
-<!-- TODO 第十二章引用了FlashAttention论文的结论和图1，但正文还没给出论文标题。待正文补上后，把下面这条加进表里，章节写第十二章：
-     《FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness》（arXiv:2205.14135）
+<!-- TODO 第十二章的FlashAttention、在线Softmax、FlashAttention-2已在正文补上引用并收进下表（2026-11-01）。
      另外几篇正文提到但没有正式引用的，要不要补，由作者定：
-     在线Softmax《Online normalizer calculation for softmax》（arXiv:1805.02867），第十二章
      PagedAttention《Efficient Memory Management for Large Language Model Serving with PagedAttention》（arXiv:2309.06180），第十一章
      《Qwen3 Technical Report》（arXiv:2505.09388），第十三章 -->
 
@@ -38,6 +36,9 @@
 | 2019 | 《The Curious Case of Neural Text Degeneration》（arXiv:1904.09751） | top-p（核采样） | 第十章 |
 | 2020 | 《Transformers are RNNs: Fast Autoregressive Transformers with Linear Attention》（arXiv:2006.16236） | 线性注意力 | 第十一章 |
 | 2024 | 《DeepSeek-V2: A Strong, Economical, and Efficient Mixture-of-Experts Language Model》（arXiv:2405.04434） | MLA | 第十一章 |
+| 2022 | 《FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness》（arXiv:2205.14135） | 分块加在线Softmax，不把 $T \times T$ 的大表写进显存 | 第十二章 |
+| 2018 | 《Online normalizer calculation for softmax》（arXiv:1805.02867） | 在线Softmax | 第十二章 |
+| 2023 | 《FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning》（arXiv:2307.08691） | 外层循环改成Q | 第十二章 |
 
 
 

@@ -5,14 +5,14 @@
     x = [1, 3, 2, 5]      注意力分数的一行，已经除过√d
     v = [10, 20, 30, 40]  V的一列
 
-一次看完整行，a = softmax(x) · v。切成两块，每块只看得见自己那一半，就维护三样东西：
+一次看完整行，o = softmax(x) · v。切成两块，每块只看得见自己那一半，就维护三样东西：
 
     m   目前见过的最大值
     l   以m为基准的分母，sum(exp(x - m))
     y   以m为基准的分子，sum(exp(x - m) * v)
 
 每来一块，先看最大值要不要更新；更新了，就给手里的l和y乘一个修正系数exp(m_旧 - m_新)。
-最后a = y / l。后半段再拿1000个随机数、块大小7，看它和torch.softmax差多少。
+最后o = y / l。后半段再拿1000个随机数、块大小7，看它和torch.softmax差多少。
 
 运行：
     cd code
@@ -45,11 +45,11 @@ def main():
     w = torch.softmax(torch.tensor(x), dim=0)
     print("一次看完整行：")
     print(f"  权重 {[round(t, 4) for t in w.tolist()]}")
-    print(f"  a = {float(w @ torch.tensor(v)):.4f}\n")
+    print(f"  o = {float(w @ torch.tensor(v)):.4f}\n")
 
     print("切成两块，每块2个：")
-    a = online(x, v, block=2, show=True)
-    print(f"  a = 分子 / 分母 = {a:.4f}\n")
+    o = online(x, v, block=2, show=True)
+    print(f"  o = 分子 / 分母 = {o:.4f}\n")
 
     # ---- 再拿一大串随机数试一下 ------------------------------------------------
     g = torch.Generator().manual_seed(0)
