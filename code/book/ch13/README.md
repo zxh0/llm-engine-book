@@ -19,9 +19,12 @@ uv run python book/ch13/check_forward.py Qwen3-0.6B-Base   # 四级验收
 uv run python book/ch13/check_forward.py           # SmolLM2，和第十一章一样
 uv run python book/ch13/assumptions.py             # 把SmolLM2的假设套到Qwen3上会怎样
 uv run python book/ch13/engine.py "Once upon a time" --model Qwen3-0.6B-Base
-uv run python book/ch13/chat.py                    # 和对话版说几句话
-uv run python book/ch13/chat.py "What is 17 + 25?" --think --max-new-tokens 1200
-uv run python book/ch13/chat.py --model SmolLM2-135M-Instruct --greedy   # 它没有推荐的采样参数，要加--greedy
+uv run python book/ch13/chat.py                    # 和对话版说几句话：中国的首都是哪里？
+uv run python book/ch13/chat.py "天空为什么是蓝色的？用两句话回答。"
+uv run python book/ch13/chat.py "用一句话解释什么是大模型推理时的KV缓存。"
+uv run python book/ch13/chat.py "17加25等于多少？" --think --max-new-tokens 1200
+uv run python book/ch13/chat.py --model SmolLM2-135M-Instruct --greedy   # 它没有推荐的采样参数，要加--greedy；中文答不上来
+uv run python book/ch13/chat.py "What is the capital of China?" --model SmolLM2-135M-Instruct --greedy
 ```
 
 ## 文件
@@ -37,7 +40,8 @@ uv run python book/ch13/chat.py --model SmolLM2-135M-Instruct --greedy   # 它�
 | `baseline.py` | **这一章新增**。导入transformers，给新模型存一份`reference/<模型名>.pt` |
 | `check_forward.py` | 第十一章那个，模型和基准文件从命令行来 |
 | `assumptions.py` | **这一章新增**。把`Config`的字段一个个改回SmolLM2的样子 |
-| `tokenizers_diff.py` | **这一章新增**。两个分词器的文件结构和切分结果 |
+| `tokenizers_diff.py` | **这一章新增**。两个分词器的文件结构和切分结果；最后比较Qwen3基座版和对话版的分词器，对话版多了`<think>`等4个追加词元 |
+| `layout.py` | **这一章新增**。打印时按列宽折行（汉字算2列），好让输出印在书上放得下，内容一个字不改 |
 | `chat.py` | **这一章新增**。ChatML模板、思考模式、`generation_config.json`推荐的采样参数 |
 
 ## 几个数

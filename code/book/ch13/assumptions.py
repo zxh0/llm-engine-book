@@ -19,6 +19,7 @@
 import torch
 
 from engine import Engine
+from layout import width, wrap_repr
 from model import Model
 from weights import MODELS
 
@@ -43,18 +44,20 @@ def main():
     n = len(ids)
 
     def run(label):
+        label += " " * (26 - width(label))             # 按列宽补齐，汉字占2列
         model.cos, model.sin = model.rope_table()      # 改了配置，表要重算
         model.qk_norm = model.rms_norm if cfg.qk_norm else model.no_norm
         try:
             out = engine.generate(ids)
         except Exception as e:
-            print(f"  {label:<26}报错   {type(e).__name__}: {str(e)[:60]}")
+            print(f"  {label}报错")
+            print(f"      {type(e).__name__}: {str(e)[:70]}")
             return
         d = first_diff(out, theirs)
         verdict = "一字不差" if d is None else f"第{d - n + 1}个新词元起不同，不报错"
-        print(f"  {label:<26}{verdict}")
+        print(f"  {label}{verdict}")
         if d is not None:
-            print(f"  {'':<26}{tok.decode(out[n:])!r}")
+            print(wrap_repr(tok.decode(out[n:]), indent="      "))
 
     print(f"{NAME}，'{ref['prompt']}'，贪婪生成20个\n")
     run("照文件读（正确）")

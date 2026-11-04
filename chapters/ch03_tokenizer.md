@@ -135,7 +135,7 @@ ID      [504, 10976, 2327, 314, 33282, 16275, 30]
 
 其中，`vocab.json`和`merges.txt`是老一代的格式，现在已经不用了。第二章我们说过，它们的内容是完全包含在`tokenizer.json`里的。`special_tokens_map.json`也是一样，它的四个字段全都能在`tokenizer_config.json`里找到，一个独有的都没有。这三个文件其实都是HF为了兼容老版本而自动生成的副本，我们放心忽略即可。不过`merges.txt`是纯文本，一行一条规则，肉眼比JSON好读，后面讲合并表的时候还会提到它。
 
-那`tokenizer_config.json`呢？它有两个字段是别处没有的。一个是`tokenizer_class`，值是`GPT2Tokenizer`，这是这套分词器的出生证明：SmolLM2用的基本就是GPT-2那一套，主要是换了词表。另一个是`clean_up_tokenization_spaces`，值是`false`，意思是解码之后不再做额外的清理。要是设成`true`，`transformers`会顺手删掉标点前面的空格，那样我们自己算出来的结果就和它对不上了。此外还有个`model_max_length`，值是8192，说的是这个分词器建议的最大序列长度，我们的推理引擎不做截断，用不上它。
+那`tokenizer_config.json`呢？它有两个字段是别处没有的。一个是`tokenizer_class`，值是`GPT2Tokenizer`，这是这套分词器的出生证明：SmolLM2用的基本就是GPT-2那一套，主要是换了词表。另一个是`clean_up_tokenization_spaces`，值是`false`，意思是解码之后不再做额外的清理。要是设成`true`，`transformers`库会顺手删掉标点前面的空格，那样我们自己算出来的结果就和它对不上了。此外还有个`model_max_length`，值是8192，说的是这个分词器建议的最大序列长度，我们的推理引擎不做截断，用不上它。
 
 总之，这五个文件里最重要的就是`tokenizer.json`，我们后面要用的`tokenizers`库也只读这一个。第二章说过，权重和分词是两套完全独立的东西，你要是不信，可以把`model.safetensors`改个名字藏起来，这一章的代码照跑不误。下一小节我们详细分析`tokenizer.json`。
 

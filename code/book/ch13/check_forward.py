@@ -23,6 +23,7 @@ import sys
 import torch
 
 from engine import Engine
+from layout import wrap_repr
 from weights import MODEL_DIR, MODELS
 
 
@@ -84,8 +85,10 @@ def main():
     theirs = ref["greedy"][0].tolist()
     text = engine.tok.decode(out)
     print(f"\n四  贪婪解码")
-    print(f"    我们     {text!r}")
-    print(f"    transformers {ref['greedy_text']!r}")
+    print("    我们")
+    print(wrap_repr(text, indent="      "))
+    print("    transformers")
+    print(wrap_repr(ref['greedy_text'], indent="      "))
     print(f"    ID{'相同' if out == theirs else '不同'}，"
           f"文字{'相同' if text == ref['greedy_text'] else '不同'}")
 

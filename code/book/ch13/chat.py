@@ -1,7 +1,7 @@
 """第十三章 · 和对话版的Qwen3-0.6B说几句话
 
 第十章说过：基座模型只会续写，想要对话，得换一份做过后训练的权重，再按对话模板
-把问题包起来。这一章就这么做，引擎一行不改：
+把问题包起来。这一章就这么做，引擎只多了EOS集合等几处改动：
 
   - 权重换成`Qwen3-0.6B`，和`Qwen3-0.6B-Base`架构、形状一模一样；
   - 问题按ChatML格式包起来，和第三章、第十章见过的`<|im_start|>`、`<|im_end|>`一样；
@@ -16,7 +16,7 @@ transformers的对话模板`enable_thinking=False`干的就是这件事。
     cd code
     REPO=Qwen/Qwen3-0.6B ./download_model.sh          # 先下对话版的权重
     uv run python book/ch13/chat.py
-    uv run python book/ch13/chat.py "Why is the sky blue?" --think
+    uv run python book/ch13/chat.py "17加25等于多少？" --think --max-new-tokens 1200
 """
 
 import argparse
@@ -24,6 +24,7 @@ import time
 
 from detokenizer import StreamDecoder
 from engine import Engine
+from layout import LineWrap, wrap_repr
 from sampler import Sampler
 from weights import MODELS
 
@@ -40,7 +41,7 @@ def chatml(question, think):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("question", nargs="?", default="What is the capital of France?")
+    ap.add_argument("question", nargs="?", default="中国的首都是哪里？")
     ap.add_argument("--think", action="store_true", help="让它先想一想")
     ap.add_argument("--greedy", action="store_true", help="不用推荐的采样参数，取最高分")
     ap.add_argument("--max-new-tokens", type=int, default=300)
@@ -57,16 +58,17 @@ def main():
     print(f"模型     {args.model}")
     print(f"采样器   {sampler!r}")
     print(f"EOS      {sorted(engine.eos)}")
-    print(f"提示词   {prompt!r}")
+    print("提示词   " + wrap_repr(prompt, indent=" " * 9)[9:])  # 一行一段，按换行符断开
     print(f"         {len(ids)}个词元\n")
 
     stream = StreamDecoder(engine.tok)
+    wrap = LineWrap()  # 只为印在书上好看，文字一个字不改
     n = 0
     start = time.perf_counter()
     for i in engine.stream(ids, sampler, args.max_new_tokens):
         n += 1
-        print(stream.push(i), end="", flush=True)
-    print(stream.flush())
+        print(wrap(stream.push(i)), end="", flush=True)
+    print(wrap(stream.flush()) + wrap.flush())
     seconds = time.perf_counter() - start
     why = "抽到EOS" if n < args.max_new_tokens else "到了上限"
     print(f"\n{n}个新词元，{why}停下，用时{seconds:.1f}秒")

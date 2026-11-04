@@ -346,7 +346,7 @@ ID     [6403, 1980, 253, 655, 1461, 14083, 12690, 41346, 46446, 31290, 411, 4502
 
 不过和上一章比，难看的方式变了。上一章是不停地复读最后一个词，因为最后那个向量没被任何一层碰过，拿它自己去问谁最像，答案永远是它自己；这一章，这个不动点被随机数打破了，每一圈都换一个词。骨架确实通了，只是流过去的是垃圾。
 
-虽然输出没什么参考价值，不过`rms_norm()`本身的计算是可以核对的。这一章的随书源代码里有一个`check_rmsnorm.py`脚本，专门把它和`transformers`里的`LlamaRMSNorm`比了一下：同样的输入、同样的权重，两边的输出逐位相同，一个比特都不差。
+虽然输出没什么参考价值，不过`rms_norm()`本身的计算是可以核对的。这一章的随书源代码里有一个`check_rmsnorm.py`脚本，专门把它和`transformers`库里的`LlamaRMSNorm`比了一下：同样的输入、同样的权重，两边的输出逐位相同，一个比特都不差。
 
 
 
@@ -360,7 +360,7 @@ ID     [6403, 1980, 253, 655, 1461, 14083, 12690, 41346, 46446, 31290, 411, 4502
 
 第三，从LayerNorm出发认识了RMSNorm。RMSNorm砍掉了减均值和偏置，只除以均方根，再乘上 $\boldsymbol{\gamma}$ ，其中 $\epsilon$ 要加在根号里面。每个RMSNorm只有576个参数，61个加起来也才35,136个。
 
-第四，把这些写成了代码。我们新建了`Config`类，给`Model`加上了`rms_norm()`、`block()`和`forward()`，中间那30层的骨架就搭起来了。我们还用`check_rmsnorm.py`把`rms_norm()`和`transformers`里的`LlamaRMSNorm`对了一下，输出逐位相同。引擎现在是：
+第四，把这些写成了代码。我们新建了`Config`类，给`Model`加上了`rms_norm()`、`block()`和`forward()`，中间那30层的骨架就搭起来了。我们还用`check_rmsnorm.py`把`rms_norm()`和`transformers`库里的`LlamaRMSNorm`对了一下，输出逐位相同。引擎现在是：
 
 ```
 ids → embed → [norm → □ → norm → □] × 30 → norm → lm_head → logits

@@ -31,6 +31,7 @@ const PUBLISHED = new Set([
   'ch10_sampling.md',
   'ch11_kvcache.md',
   'ch12_flash_attn.md',
+  'ch13_qwen3.md',
 ])
 
 // 工具：tools/<目录>/ 下的纯静态单页，整个目录原样拷到 docs/public/tools/<目录>/，
